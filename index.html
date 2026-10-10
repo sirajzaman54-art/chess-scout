@@ -1,0 +1,1782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Scout</title>
+<meta name="description" content="Find an opponent's Chess.com and Lichess accounts and get an opening report for your next round.">
+<meta name="theme-color" content="#2d6a3e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#f5f3ec; --surface:#ffffff; --surface2:#efece2; --ink:#1d211b; --muted:#5d6557; --line:#dcd8ca;
+  --accent:#2d6a3e; --accent-ink:#ffffff; --accent-soft:#e1efe4;
+  --win:#2f7d46; --draw:#a7ab9f; --loss:#b3402f;
+  --warn-bg:#fbf0d4; --warn-ink:#6b4e0a; --bad-bg:#f8e0db; --bad-ink:#8a2a1c;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111410; --surface:#1a1e18; --surface2:#222820; --ink:#e9ece3; --muted:#9ba294; --line:#2c3328;
+    --accent:#6fbf86; --accent-ink:#0d1a10; --accent-soft:#1f3226;
+    --win:#5fb577; --draw:#6f766a; --loss:#d9715f;
+    --warn-bg:#3a3014; --warn-ink:#f0d68a; --bad-bg:#40201b; --bad-ink:#f2b3a8;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111410; --surface:#1a1e18; --surface2:#222820; --ink:#e9ece3; --muted:#9ba294; --line:#2c3328;
+  --accent:#6fbf86; --accent-ink:#0d1a10; --accent-soft:#1f3226;
+  --win:#5fb577; --draw:#6f766a; --loss:#d9715f;
+  --warn-bg:#3a3014; --warn-ink:#f0d68a; --bad-bg:#40201b; --bad-ink:#f2b3a8;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px 96px}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:20px 0 12px}
+.brand{font:600 1.5rem/1 Georgia,"Iowan Old Style",serif;letter-spacing:.01em;margin-right:auto}
+.brand span{color:var(--accent)}
+nav.tabs{display:flex;gap:4px;background:var(--surface2);padding:4px;border-radius:999px}
+nav.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 18px;border-radius:999px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font:600 1.25rem/1.3 Georgia,"Iowan Old Style",serif;margin:0 0 4px}
+h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+p.lead{color:var(--muted);margin:0 0 16px;max-width:64ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:640px){.g2,.g3{grid-template-columns:1fr}}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px}
+label small{font-weight:400;color:var(--muted)}
+textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;resize:vertical}
+input[type=text],input[type=number],select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.checks{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
+.checks label{display:flex;gap:6px;align-items:center;font-weight:500;margin:0}
+button.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;font:inherit;font-weight:600;padding:10px 20px;cursor:pointer}
+button.primary:disabled{opacity:.55;cursor:progress}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:8px;font:inherit;padding:7px 12px;cursor:pointer}
+button.ghost:hover{border-color:var(--accent)}
+button.mini{font:inherit;font-size:.78rem;padding:2px 9px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;cursor:pointer;white-space:nowrap}
+button.mini:hover{background:var(--accent-soft)}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.status{color:var(--muted);font-size:.92rem;min-height:1.4em}
+.notice{border-radius:8px;padding:10px 12px;font-size:.92rem;margin:0 0 12px}
+.notice.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.notice.bad{background:var(--bad-bg);color:var(--bad-ink)}
+.notice.info{background:var(--accent-soft);color:var(--ink)}
+[hidden]{display:none!important}
+
+/* candidates */
+.cands{display:grid;gap:10px}
+.cand{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--surface)}
+.cand.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.av{width:48px;height:48px;border-radius:8px;background:var(--surface2);display:grid;place-items:center;font-weight:700;color:var(--muted);overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.cand .nm{font-weight:700;overflow-wrap:anywhere}
+.cand .nm a{color:inherit}
+.cand .sub{color:var(--muted);font-size:.88rem}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.chip{font-size:.74rem;padding:2px 8px;border-radius:999px;background:var(--surface2);color:var(--muted)}
+.chip.good{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.chip.bad{background:var(--bad-bg);color:var(--bad-ink)}
+.badge{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;background:var(--surface2);color:var(--muted)}
+.strength{font-size:.78rem;font-weight:700;text-align:right;white-space:nowrap}
+.strength.s-strong{color:var(--win)} .strength.s-possible{color:var(--warn-ink)} .strength.s-weak{color:var(--muted)}
+@media (max-width:520px){.cand{grid-template-columns:40px 1fr}.cand .side{grid-column:1/-1}.av{width:40px;height:40px}}
+.selbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;z-index:5}
+
+/* report */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:8px}
+.stat{background:var(--surface2);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font-size:1.35rem;line-height:1.2}
+.stat span{font-size:.8rem;color:var(--muted)}
+.line{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88rem}
+.seg{display:inline-flex;background:var(--surface2);border-radius:8px;padding:3px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.colorbar{padding:4px 0 2px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.stick{position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0 4px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.subtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:thin}
+.subtabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-weight:600;font-size:.9rem;padding:6px 14px;border-radius:999px;cursor:pointer}
+.subtabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.colorbar span{font-size:.85rem;color:var(--muted)}
+.plan{display:grid;gap:8px}
+.planrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg)}
+.planrow .meta{font-size:.8rem;color:var(--muted);margin-top:2px}
+.subhead{font-size:.82rem;font-weight:700;margin:14px 0 6px}
+.firstmoves{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.fm{padding:4px 10px;border-radius:8px;background:var(--accent-soft);font-size:.9rem}
+.fm b{font-family:ui-monospace,Consolas,monospace}
+
+.xgrid{display:grid;grid-template-columns:minmax(280px,440px) minmax(0,1fr);gap:18px;margin-top:12px;align-items:start}
+@media (max-width:820px){.xgrid{grid-template-columns:1fr}}
+.boardwrap{position:relative;width:100%;max-width:440px;aspect-ratio:1;margin:0 auto}
+.boardwrap svg{width:100%;height:100%;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.bctl{display:flex;justify-content:center;gap:6px;margin:10px 0}
+.bctl button{font:inherit;min-width:44px;padding:6px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;cursor:pointer}
+.bctl button:hover:not(:disabled){border-color:var(--accent)}
+.bctl button:disabled{opacity:.4;cursor:default}
+.engine{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--bg);font-size:.9rem}
+.evalbar{height:14px;border-radius:7px;overflow:hidden;background:#222;position:relative;margin:6px 0 8px}
+.evalbar i{display:block;height:100%;background:#f4f4f0;transition:width .25s}
+.evalbar b{position:absolute;right:6px;top:-1px;font-size:.7rem;color:#fff;mix-blend-mode:difference}
+.pv{display:grid;grid-template-columns:3.6rem 1fr;gap:8px;padding:3px 0;border-top:1px solid var(--line)}
+.pv:first-of-type{border-top:0}
+.pv .e{font-weight:700;font-variant-numeric:tabular-nums}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
+.crumbs button{font:inherit;font-size:.85rem;padding:3px 9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+.crumbs button:last-child{border-color:var(--accent);color:var(--accent);font-weight:700}
+.rows{display:grid;gap:4px}
+.row{display:grid;grid-template-columns:5.2rem 1fr 5.6rem 6rem 3rem;gap:10px;align-items:center;width:100%;text-align:left;font:inherit;color:inherit;background:var(--bg);border:1px solid transparent;border-radius:8px;padding:7px 10px;cursor:pointer}
+.row:hover{border-color:var(--accent)}
+.row.theirs{background:var(--accent-soft)}
+.row .mv{font-weight:700;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.95rem}
+.row .bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.row .bar i{display:block;height:100%;background:var(--accent)}
+.row .cnt{font-size:.85rem;color:var(--muted);text-align:right}
+.row .sc{font-size:.85rem;text-align:right;font-weight:600}
+.wdl{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface2)}
+.wdl i{display:block;height:100%}
+.wdl .w{background:var(--win)} .wdl .d{background:var(--draw)} .wdl .l{background:var(--loss)}
+@media (max-width:640px){.row{grid-template-columns:4.6rem 1fr 4.2rem 2.6rem}.row .bar{display:none}}
+.legend{font-size:.8rem;color:var(--muted);margin-top:8px}
+.tend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.tbox{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--bg)}
+.tbox ul{margin:0;padding-left:1.1em}
+.tbox li{margin:3px 0}
+.hbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);margin:4px 0 2px}
+.hbar i{display:block;height:100%}
+.form{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0}
+.form span{width:20px;height:20px;border-radius:4px;display:grid;place-items:center;font-size:.7rem;font-weight:700;color:#fff}
+.form .w{background:var(--win)} .form .d{background:var(--draw)} .form .l{background:var(--loss)}
+.insight{padding:8px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);margin:6px 0;font-size:.92rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.n,th.n{text-align:right}
+.res{display:inline-block;min-width:1.6rem;text-align:center;font-weight:700;font-size:.78rem;border-radius:5px;padding:1px 6px;color:#fff}
+.res.w{background:var(--win)} .res.d{background:var(--draw)} .res.l{background:var(--loss)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid var(--muted);vertical-align:middle}
+.dot.white{background:#fff} .dot.black{background:#222}
+.saved{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
+.saved .chipbtn{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--bg)}
+.saved .chipbtn button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:.85rem;padding:4px 10px;cursor:pointer}
+.saved .chipbtn button+button{border-left:1px solid var(--line);color:var(--muted);padding:4px 8px}
+footer{color:var(--muted);font-size:.82rem;margin-top:24px}
+
+/* summary */
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;margin-top:10px}
+.sbox{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--bg)}
+.sbox h4{margin:0 0 6px;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sbox ul{margin:0;padding-left:1.1em}
+.sbox li{margin:5px 0}
+.sbox .row2{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+/* practice */
+.prgrid{display:grid;grid-template-columns:minmax(280px,460px) minmax(0,1fr);gap:18px;align-items:start;margin-top:10px}
+@media (max-width:820px){.prgrid{grid-template-columns:1fr}}
+#pr-board{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.plog{display:grid;gap:6px;max-height:380px;overflow:auto;margin-top:8px}
+.pl{display:grid;grid-template-columns:3.6rem minmax(0,1fr);gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg);font-size:.9rem}
+.pl.me{background:var(--accent-soft)}
+.pl .mvn{font-family:ui-monospace,Consolas,monospace;font-weight:700}
+.vd{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;margin-right:6px;color:#fff;white-space:nowrap}
+.vd.best{background:var(--win)} .vd.good{background:#4f9d5d} .vd.ok{background:#7d8478} .vd.inacc{background:#c48a1f} .vd.bad{background:var(--loss)} .vd.none{background:var(--muted)}
+.prbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
+.prbar > div{min-width:10rem;flex:1 1 12rem}
+.endbox{border-radius:8px;padding:10px 12px;background:var(--warn-bg);color:var(--warn-ink);margin-top:8px}
+.endbox b{display:block;margin-bottom:2px}
+.snote{margin-top:8px;font-size:.85rem}
+@media print{.snote[data-empty]{display:none}}
+
+/* tournament roster */
+.rrow{display:grid;grid-template-columns:2.2rem minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.rrow:last-child{border-bottom:0}
+.rrow .no{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.rrow .nm{font-weight:700;overflow-wrap:anywhere}
+.rrow .sub{color:var(--muted);font-size:.88rem}
+.rrow .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:520px){.rrow{grid-template-columns:1.6rem minmax(0,1fr)}.rrow .btns{grid-column:1/-1;justify-content:flex-start}}
+
+/* prep sheet */
+.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:10px}
+.scard{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--bg);display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-content:start;break-inside:avoid}
+@media (max-width:420px){.scard{grid-template-columns:1fr}.scard .sb{max-width:220px}}
+.scard svg{width:100%;height:auto;display:block;border-radius:4px}
+.scard > div > .line{display:block;margin-bottom:2px}
+.scard p{margin:6px 0 0;font-size:.9rem}
+.st{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:999px;margin-bottom:4px}
+.st.ok{background:var(--accent-soft);color:var(--accent)} .st.check{background:var(--warn-bg);color:var(--warn-ink)}
+.st.gap{background:var(--bad-bg);color:var(--bad-ink)} .st.unk{background:var(--surface2);color:var(--muted)}
+.sumline{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;border-radius:8px;background:var(--accent-soft);margin:8px 0}
+.sumline b{font-size:1.1rem}
+.key{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:8px}
+.key i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+@media print{
+  :root{--bg:#fff;--surface:#fff;--surface2:#eee;--ink:#000;--muted:#444;--line:#bbb;--accent:#1f5a2f;--accent-soft:#e6f2e9;--warn-bg:#fdf2d0;--warn-ink:#5a4000;--bad-bg:#f9dcd6;--bad-ink:#7a1f12}
+  body *{visibility:hidden}
+  #sheet-card,#sheet-card *{visibility:visible}
+  #sheet-card{position:absolute;left:0;top:0;width:100%;border:0;padding:0}
+  .noprint{display:none!important}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Chess <span>Scout</span></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-find" aria-selected="true" aria-controls="view-find">Find player</button>
+      <button role="tab" id="tab-scout" aria-selected="false" aria-controls="view-scout">Scout</button>
+      <button role="tab" id="tab-tour" aria-selected="false" aria-controls="view-tour">Tournament</button>
+    </nav>
+  </header>
+
+  <!-- FIND -->
+  <section id="view-find" role="tabpanel" aria-labelledby="tab-find">
+    <h2>Find your opponent's accounts</h2>
+    <p class="lead">Enter what you know. The tool checks hundreds of likely usernames and public profiles on Chess.com and Lichess, tries every username it finds on the other site too, and ranks the matches. You choose the right one.</p>
+    <form id="find-form" class="card" autocomplete="off">
+      <div class="grid g2">
+        <div><label for="f-name">Opponent's full name</label><input id="f-name" type="text" placeholder="e.g. Saad Khan" required></div>
+        <div><label for="f-cc">Country code <small>(optional)</small></label><input id="f-cc" type="text" maxlength="2" placeholder="e.g. PK"></div>
+        <div><label for="f-rmin">Rating from <small>(optional)</small></label><input id="f-rmin" type="number" min="0" max="3500" placeholder="e.g. 1200"></div>
+        <div><label for="f-rmax">Rating to <small>(optional)</small></label><input id="f-rmax" type="number" min="0" max="3500" placeholder="e.g. 2000"></div>
+        <div style="grid-column:1/-1"><label for="f-place">City or place <small>(optional: matched against the location on their profile)</small></label><input id="f-place" type="text" placeholder="e.g. Karachi"></div>
+        <div style="grid-column:1/-1"><label for="f-hint">Username hint <small>(optional: a nickname, number or word you think they use)</small></label><input id="f-hint" type="text" placeholder="e.g. 999, king, pk"></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="f-go" type="submit">Find accounts</button>
+        <label style="margin:0;font-weight:500;display:flex;gap:6px;align-items:center"><input type="checkbox" id="f-deep" checked> Deep search <small>(about 500 variants, ~20 seconds)</small></label>
+        <span class="status" id="f-status" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+    <div class="card" id="club-card">
+      <h3>Search inside a club or team</h3>
+      <p class="lead" style="margin:0 0 12px">Use this when the username looks nothing like the name. Many players join their university's club on Chess.com or team on Lichess, and their profile name gives them away. It uses the name, country and rating from the form above.</p>
+      <div class="grid g2">
+        <div><label for="c-text">Club or team name</label><input id="c-text" type="text" placeholder="e.g. Karachi, Iqra University"></div>
+        <div><label for="c-link">Or paste a club / team link</label><input id="c-link" type="text" placeholder="chess.com/club/... or lichess.org/team/..."></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="c-find" type="button">Find clubs and teams</button>
+        <button class="ghost" id="c-scan-link" type="button">Scan pasted link</button>
+        <span class="status" id="c-status" role="status" aria-live="polite"></span>
+      </div>
+      <div id="c-list"></div>
+    </div>
+    <div id="f-results"></div>
+    <div class="card">
+      <h3>Already know a username?</h3>
+      <p class="lead" style="margin:0 0 10px">Skip the search and go straight to the report.</p>
+      <button class="ghost" id="skip-to-scout" type="button">Enter usernames directly</button>
+    </div>
+  </section>
+
+  <!-- TOURNAMENT -->
+  <section id="view-tour" role="tabpanel" aria-labelledby="tab-tour" hidden>
+    <h2>Tournament players</h2>
+    <p class="lead">Open the tournament on chess-results.com (the starting rank list or the pairings), select the table, copy it and paste it below. This page never contacts Chess-Results. It only reads what you paste.</p>
+    <div class="card">
+      <label for="t-paste">Pasted table</label>
+      <textarea id="t-paste" rows="6" placeholder="Paste the players or pairings table here"></textarea>
+      <div class="actions">
+        <button class="primary" id="t-read" type="button">Read players</button>
+        <button class="ghost" id="t-clear" type="button">Clear list</button>
+        <span class="status" id="t-status" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+    <div id="t-list"></div>
+  </section>
+
+  <!-- SCOUT -->
+  <section id="view-scout" role="tabpanel" aria-labelledby="tab-scout" hidden>
+    <h2>Scout an opponent</h2>
+    <p class="lead">Give one or both usernames. Games from both sites are combined into one report.</p>
+    <form id="scout-form" class="card" autocomplete="off">
+      <div class="grid g2">
+        <div><label for="s-cc">Chess.com username <small>(or profile link)</small></label><input id="s-cc" type="text" placeholder="username"></div>
+        <div><label for="s-li">Lichess username <small>(or profile link)</small></label><input id="s-li" type="text" placeholder="username"></div>
+        <div><label for="s-months">Look back</label>
+          <select id="s-months"><option value="1">1 month</option><option value="3">3 months</option><option value="6" selected>6 months</option><option value="12">12 months</option><option value="24">24 months</option><option value="0">All time</option></select></div>
+        <div><label for="s-max">Max games per site</label>
+          <select id="s-max"><option value="300">300</option><option value="1000" selected>1,000</option><option value="3000">3,000</option></select></div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="m-cc">Your own accounts <small>(optional: lets the prep sheet check each line against what you actually play)</small></label>
+        <div class="grid g2">
+          <input id="m-cc" type="text" placeholder="Your Chess.com username" aria-label="Your Chess.com username">
+          <input id="m-li" type="text" placeholder="Your Lichess username" aria-label="Your Lichess username">
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label>Time controls</label>
+        <div class="checks">
+          <label><input type="checkbox" name="tc" value="bullet"> Bullet</label>
+          <label><input type="checkbox" name="tc" value="blitz" checked> Blitz</label>
+          <label><input type="checkbox" name="tc" value="rapid" checked> Rapid</label>
+          <label><input type="checkbox" name="tc" value="classical" checked> Classical / Daily</label>
+          <label style="margin-left:auto"><input type="checkbox" id="s-rated"> Rated games only</label>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="s-go" type="submit">Build report</button>
+        <span class="status" id="s-status" role="status" aria-live="polite"></span>
+      </div>
+      <div class="saved" id="saved" hidden></div>
+    </form>
+    <div id="report"></div>
+  </section>
+
+  <footer><b>Version 6</b> (summary, practice drills, tournament list, prep sheet, club scan, board, engine help). If you do not see the board after you build a report, press Ctrl+Shift+R to reload. <br>Uses public game data from the Chess.com and Lichess APIs, and Lichess's cloud engine analysis. For pre-game preparation only. Outside help during an over-the-board game is not allowed under FIDE rules.</footer>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <span id="selbar-text"></span>
+  <button class="primary" id="selbar-go" type="button">Scout selected</button>
+  <button class="ghost" id="selbar-clear" type="button">Clear</button>
+</div>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('chessScout.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('chessScout.' + k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- tabs ---------- */
+function showTab(name) {
+  for (const t of ['find', 'scout', 'tour']) {
+    $('#view-' + t).hidden = t !== name;
+    $('#tab-' + t).setAttribute('aria-selected', String(t === name));
+  }
+  $('#selbar').hidden = !(name === 'find' && (sel.cc || sel.li));
+  window.scrollTo({ top: 0 });
+}
+$('#tab-find').onclick = () => showTab('find');
+$('#tab-scout').onclick = () => showTab('scout');
+$('#tab-tour').onclick = () => showTab('tour');
+$('#skip-to-scout').onclick = () => showTab('scout');
+
+/* ---------- network ---------- */
+async function getJson(url, opts = {}) {
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch(url, opts);
+    if (r.status === 429) {
+      const lichess = url.includes('lichess.org');
+      if (i === 2) throw new Error('Rate limited by ' + (lichess ? 'Lichess' : 'Chess.com') + '. Wait a minute and try again.');
+      await sleep(lichess ? 61000 : 3000);
+      continue;
+    }
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(r.status + ' from ' + new URL(url).host);
+    return r.json();
+  }
+}
+async function pool(items, n, fn) {
+  let i = 0; const out = new Array(items.length);
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k], k).catch(() => null); }
+  }));
+  return out;
+}
+const cleanUser = s => {
+  s = (s || '').trim().replace(/[?#].*$/, '').replace(/\/+$/, '');
+  if (s.includes('/')) s = s.split('/').pop();
+  return s.replace(/^@/, '');
+};
+
+/* ---------- FIND ---------- */
+const fold = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+function lev(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return 2;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+const tokenHit = (set, t) => set.has(t) || (t.length >= 5 && [...set].some(x => x.length >= 5 && lev(x, t) <= 1));
+
+const NUMS = (() => {
+  const n = [];
+  for (let i = 0; i <= 99; i++) n.push(String(i));
+  n.push('00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '100', '101', '111', '121', '123', '143', '200', '222', '234', '321', '333', '420', '444', '500', '555', '600', '666', '700', '711', '777', '786', '800', '888', '900', '999', '1000', '1234');
+  for (let y = 1985; y <= 2010; y++) n.push(String(y));
+  return [...new Set(n)];
+})();
+
+function makeGuesses(tokens, cc, hint, deep) {
+  const core = new Set(), numeric = new Set();
+  const h = fold(hint).replace(/\s/g, '');
+  const sfx = ['chess', '_chess', '1', '123', '786', '12', '99', '07', cc && cc.toLowerCase()].filter(Boolean);
+  const pairs = tokens.length > 1 ? [[tokens[0], tokens[tokens.length - 1]]] : [[tokens[0], '']];
+  if (tokens.length > 2) pairs.push([tokens[0], tokens[1]]);
+  for (const [a, b] of pairs) {
+    const bases = b ? [a + b, a + '_' + b, a + '-' + b, b + a, b + '_' + a, b + '-' + a] : [a];
+    [a, b].filter(Boolean).forEach(x => { core.add(x); ['chess', '_chess', '1', '123', '786'].forEach(s => core.add(x + s)); });
+    if (b) [a[0] + b, a + b[0], b + a[0], b[0] + a].forEach(x => core.add(x));
+    bases.forEach(x => core.add(x));
+    ['me', 'mr', 'im', 'iam', 'its', 'the', 'real', 'king', 'official'].forEach(p => [bases[0], bases[3] || bases[0]].forEach(x => core.add(p + x)));
+    bases.slice(0, 5).forEach(base => sfx.forEach(s => core.add(base + s)));
+    if (h) [...bases, a, b].filter(Boolean).forEach(base => { core.add(base + h); core.add(h + base); core.add(base + '_' + h); });
+    if (deep) [bases[0], bases[3] || bases[0], bases[1], a].filter(Boolean).forEach(base => NUMS.forEach(n => numeric.add(base + n)));
+  }
+  if (h && h.length >= 3) core.add(h);
+  const ok = u => u.length >= 3 && u.length <= 25;
+  const c = [...core].filter(ok);
+  return { core: c, numeric: [...numeric].filter(u => ok(u) && !core.has(u)), bases: [...new Set(pairs.flatMap(([a, b]) => b ? [a + b, b + a, a + '_' + b] : [a]))] };
+}
+
+async function liAutocomplete(bases, tick) {
+  const found = new Set(), seen = new Set(), queue = [...bases];
+  let budget = 45;
+  const worker = async () => {
+    while (queue.length && budget > 0) {
+      const term = queue.shift(); if (seen.has(term)) continue;
+      seen.add(term); budget--;
+      const j = await getJson('https://lichess.org/api/player/autocomplete?object=true&nb=20&term=' + encodeURIComponent(term)).catch(() => null);
+      const res = j?.result || [];
+      res.forEach(x => found.add(x.id));
+      tick(seen.size);
+      if (res.length >= 20 && term.length < 22) for (let d = 0; d <= 9; d++) queue.push(term + d);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  return found;
+}
+async function liUsers(ids) {
+  const list = [...ids], users = [];
+  for (let i = 0; i < list.length; i += 300) {
+    const j = await getJson('https://lichess.org/api/users', { method: 'POST', body: list.slice(i, i + 300).join(',') }).catch(() => null);
+    if (j) users.push(...j);
+  }
+  return users.filter(u => !u.disabled && !u.tosViolation).map(u => {
+    const p = u.profile || {}, pf = u.perfs || {};
+    const rn = p.realName || [p.firstName, p.lastName].filter(Boolean).join(' ');
+    const r = k => pf[k] && pf[k].games > 0 ? pf[k].rating : undefined;
+    return {
+      site: 'li', username: u.username, realName: rn || '', title: u.title || '',
+      country: (p.country || p.flag || '').toUpperCase(), location: p.location || '',
+      url: 'https://lichess.org/@/' + u.username, avatar: '', lastOnline: u.seenAt || 0,
+      ratings: { rapid: r('rapid'), blitz: r('blitz'), classical: r('classical') },
+      games: u.count?.rated ?? u.count?.all ?? 0
+    };
+  });
+}
+const ccStats = async u => await getJson('https://api.chess.com/pub/player/' + encodeURIComponent(u) + '/stats').catch(() => null) || {};
+function ccCandFrom(p, st) {
+  const rec = k => st[k]?.record ? st[k].record.win + st[k].record.loss + st[k].record.draw : 0;
+  return {
+    site: 'cc', username: p.username, realName: p.name || '', title: p.title || '',
+    country: (p.country || '').split('/').pop().toUpperCase(), location: p.location || '',
+    url: p.url, avatar: p.avatar || '', lastOnline: (p.last_online || 0) * 1000,
+    ratings: { rapid: st.chess_rapid?.last?.rating, blitz: st.chess_blitz?.last?.rating, classical: st.chess_daily?.last?.rating },
+    games: rec('chess_rapid') + rec('chess_blitz') + rec('chess_bullet') + rec('chess_daily')
+  };
+}
+async function ccFind(guesses, tick) {
+  let done = 0;
+  const res = await pool(guesses, 6, async u => {
+    const p = await getJson('https://api.chess.com/pub/player/' + encodeURIComponent(u));
+    tick(++done);
+    if (!p || String(p.status || '').startsWith('closed')) return null;
+    return ccCandFrom(p, await ccStats(p.username));
+  });
+  return res.filter(Boolean);
+}
+
+function scoreCand(c, q) {
+  let s = 0; const why = [];
+  const rn = fold(c.realName), rt = new Set(rn.split(' ').filter(Boolean));
+  const first = q.tokens[0], last = q.tokens[q.tokens.length - 1];
+  const glued = rn.replace(/ /g, '');   // profile names like "MeSirajHoon" are one word
+  const hitF = tokenHit(rt, first) || (first.length >= 4 && glued.includes(first));
+  const hitL = tokenHit(rt, last) || (last.length >= 4 && glued.includes(last));
+  if (hitF && hitL) { s += 50; why.push(['good', 'Real name matches']); }
+  else if (hitF || hitL) { s += 15; why.push(['warn', 'Real name partly matches']); }
+  else if (!rn) why.push(['warn', 'No real name on profile']);
+  else if (rt.size >= 2 && /^[a-z ]+$/.test(rn)) { s -= 25; why.push(['bad', 'Different real name']); }
+  else why.push(['warn', 'Profile name looks like a nickname']);
+  if (q.place && c.location && fold(c.location).includes(fold(q.place))) { s += 15; why.push(['good', 'Place matches']); }
+  const u = c.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const uF = u.includes(first), uL = u.includes(last);
+  if (uF && uL) { s += 20; why.push(['good', 'Username has first + last name']); }
+  else if (uF || uL) s += 6;
+  if (q.cc && c.country) {
+    if (c.country === q.cc) { s += 20; why.push(['good', 'Country matches']); }
+    else { s -= 25; why.push(['bad', 'Country is ' + c.country]); }
+  }
+  const rs = Object.values(c.ratings).filter(Number.isFinite);
+  if ((q.rmin != null || q.rmax != null) && rs.length) {
+    const lo = (q.rmin ?? 0) - 200, hi = (q.rmax ?? 4000) + 200;
+    if (rs.some(r => r >= lo && r <= hi)) { s += 20; why.push(['good', 'Rating in range']); }
+    else { s -= 10; why.push(['bad', 'Rating outside range']); }
+  }
+  if (c.games > 0) s += 5; else { s -= 15; why.push(['bad', 'No games played']); }
+  if (c.lastOnline && Date.now() - c.lastOnline < 90 * 864e5) { s += 5; why.push(['ok', 'Active recently']); }
+  c.raw = s; c.why = why;
+  return c;
+}
+function finalise(all) {
+  const by = new Map();
+  all.forEach(c => by.set(c.site + ':' + c.username.toLowerCase(), c));
+  for (const c of all) {                       // safe to call repeatedly: never mutates c.raw
+    let s = c.raw;
+    const twin = by.get((c.site === 'cc' ? 'li' : 'cc') + ':' + c.username.toLowerCase());
+    if (twin && c.raw > 0) {
+      s += 10;
+      if (!c.twinTag) { c.twinTag = true; c.why.push(['good', 'Same username exists on ' + (c.site === 'cc' ? 'Lichess' : 'Chess.com')]); }
+    }
+    c.score = Math.max(0, Math.min(100, s));
+    c.strength = c.score >= 70 ? 'Strong' : c.score >= 40 ? 'Possible' : 'Weak';
+  }
+}
+function nameRel(c, q) {                       // does this profile hint at the person at all?
+  const glued = fold(c.realName).replace(/ /g, ''), u = c.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return q.tokens.some(t => t.length >= 3 && (glued.includes(t) || u.includes(t)));
+}
+const FIND = { all: [], q: null };
+function addCandidates(list, q, via) {
+  const key = c => c.site + ':' + c.username.toLowerCase();
+  const have = new Map(FIND.all.map(c => [key(c), c]));
+  for (const c of list) {
+    const old = have.get(key(c));
+    if (old) { if (!old.via) { old.via = via; old.raw += 10; old.why.push(['good', 'In ' + via]); } continue; }
+    scoreCand(c, q); c.via = via; c.raw += 10; c.why.push(['good', 'In ' + via]);
+    FIND.all.push(c); have.set(key(c), c);
+  }
+  finalise(FIND.all);
+}
+
+const sel = { cc: null, li: null };
+function updateSelbar() {
+  const bits = [];
+  if (sel.cc) bits.push('Chess.com: <b>' + esc(sel.cc) + '</b>');
+  if (sel.li) bits.push('Lichess: <b>' + esc(sel.li) + '</b>');
+  $('#selbar-text').innerHTML = bits.join(' &nbsp;·&nbsp; ');
+  $('#selbar').hidden = !(bits.length && !$('#view-find').hidden);
+  $$('.cand').forEach(el => el.classList.toggle('sel', sel[el.dataset.site] === el.dataset.user));
+  $$('.cand button[data-pick]').forEach(b => {
+    const on = sel[b.dataset.site] === b.dataset.user;
+    b.textContent = on ? 'Selected ✓' : 'This is them';
+    b.className = on ? 'primary' : 'ghost';
+  });
+}
+$('#selbar-clear').onclick = () => { sel.cc = sel.li = null; updateSelbar(); };
+$('#selbar-go').onclick = () => {
+  if (typeof FINDFOR !== 'undefined' && FINDFOR != null && ROSTER[FINDFOR]) { ROSTER[FINDFOR].cc = sel.cc || ''; ROSTER[FINDFOR].li = sel.li || ''; saveRoster(); renderRoster(); }
+  $('#s-cc').value = sel.cc || ''; $('#s-li').value = sel.li || '';
+  showTab('scout'); $('#scout-form').requestSubmit();
+};
+
+const ago = ms => {
+  if (!ms) return 'unknown';
+  const d = Math.floor((Date.now() - ms) / 864e5);
+  return d < 1 ? 'today' : d < 31 ? d + 'd ago' : d < 365 ? Math.floor(d / 30) + ' mo ago' : Math.floor(d / 365) + ' yr ago';
+};
+function candHtml(c) {
+  const rt = [['Rapid', c.ratings.rapid], ['Blitz', c.ratings.blitz], ['Classical', c.ratings.classical]].filter(x => Number.isFinite(x[1])).map(x => x[0] + ' ' + x[1]).join(' · ');
+  const av = c.avatar ? `<img src="${esc(c.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : esc(c.username[0].toUpperCase());
+  return `<div class="cand" data-site="${c.site}" data-user="${esc(c.username)}">
+    <div class="av">${av}</div>
+    <div>
+      <div class="nm">${c.title ? `<span class="badge">${esc(c.title)}</span> ` : ''}<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.username)}</a></div>
+      <div class="sub">${esc(c.realName || 'No real name set')}${c.country ? ' · ' + esc(c.country) : ''}${c.location ? ' · ' + esc(c.location) : ''}</div>
+      <div class="sub">${rt || 'No ratings'} · ${c.games.toLocaleString()} games · last seen ${ago(c.lastOnline)}</div>
+      <div class="chips">${c.why.map(w => `<span class="chip ${w[0]}">${esc(w[1])}</span>`).join('')}</div>
+    </div>
+    <div class="side"><div class="strength s-${c.strength.toLowerCase()}">${c.strength} · ${c.score}</div>
+      <button type="button" class="ghost" data-pick data-site="${c.site}" data-user="${esc(c.username)}" style="margin-top:6px">This is them</button></div>
+  </div>`;
+}
+function renderCands(all, q) {
+  const section = (title, site) => {
+    const list = all.filter(c => c.site === site && c.score >= 15).sort((a, b) => b.score - a.score || b.games - a.games);
+    const more = list.length - 10;
+    return `<div class="card"><h3>${title} · ${list.length} possible</h3>${list.length
+      ? `<div class="cands">${list.slice(0, 10).map(candHtml).join('')}</div>` +
+        (more > 0 ? `<div class="cands" hidden data-more="${site}" style="margin-top:10px">${list.slice(10).map(candHtml).join('')}</div><button type="button" class="ghost" data-showmore="${site}" style="margin-top:10px">Show ${more} more</button>` : '')
+      : `<p class="status">No likely accounts found for "${esc(q.name)}".</p>`}</div>`;
+  };
+  $('#f-results').innerHTML =
+    `<div class="card"><label for="f-filter">Filter these results <small>(type part of a username, name or place, e.g. 999)</small></label><input id="f-filter" type="text" placeholder="Filter…"></div>` +
+    `<div class="notice info">A real-name match is strong evidence. A username-only match is just a lead. Check the rating, country and last-seen date before you trust it. Pick one account per site, or only one site.</div>` +
+    `<div class="grid g2" style="align-items:start">${section('Chess.com', 'cc')}${section('Lichess', 'li')}</div>` +
+    `<div class="notice warn">Nothing right? Many players use a nickname that no name search can find. Ask a teammate or coach, check the tournament page for linked usernames, or add a username hint above.</div>`;
+  const bind = root => $$('button[data-pick]', root).forEach(b => b.onclick = () => {
+    const k = b.dataset.site;
+    sel[k] = sel[k] === b.dataset.user ? null : b.dataset.user;
+    updateSelbar();
+  });
+  bind($('#f-results'));
+  $('#f-filter').oninput = e => {
+    const v = fold(e.target.value).replace(/\s/g, ''), raw = e.target.value.trim().toLowerCase();
+    $$('#f-results [data-more]').forEach(m => { if (raw) m.hidden = false; });
+    $$('#f-results .cand').forEach(el => { el.hidden = !!raw && !(el.textContent.toLowerCase().includes(raw) || fold(el.textContent).replace(/\s/g, '').includes(v)); });
+  };
+  $$('#f-results [data-showmore]').forEach(b => b.onclick = () => { $(`[data-more="${b.dataset.showmore}"]`).hidden = false; b.remove(); bind($('#f-results')); updateSelbar(); });
+  updateSelbar();
+}
+
+function readQuery() {
+  const name = $('#f-name').value.trim();
+  return {
+    name, tokens: fold(name).split(' ').filter(Boolean),
+    cc: $('#f-cc').value.trim().toUpperCase(),
+    rmin: $('#f-rmin').value ? +$('#f-rmin').value : null,
+    rmax: $('#f-rmax').value ? +$('#f-rmax').value : null,
+    hint: $('#f-hint').value.trim(), place: $('#f-place').value.trim(), deep: $('#f-deep').checked
+  };
+}
+
+/* ---------- FIND: clubs and teams ---------- */
+async function scanChesscomClub(slug, q, say) {
+  const info = await getJson('https://api.chess.com/pub/club/' + encodeURIComponent(slug));
+  if (!info) throw new Error('Chess.com club "' + slug + '" not found');
+  const m = await getJson('https://api.chess.com/pub/club/' + encodeURIComponent(slug) + '/members');
+  const names = [...new Set(['weekly', 'monthly', 'all_time'].flatMap(k => (m?.[k] || []).map(x => x.username)))];
+  if (!names.length) throw new Error(`${info.name}: Chess.com does not share this club's member list (very large clubs hide it). Try a smaller club or a Lichess team.`);
+  const list = names.slice(0, 800); let done = 0;
+  const res = await pool(list, 6, async u => {
+    const p = await getJson('https://api.chess.com/pub/player/' + encodeURIComponent(u));
+    if (++done % 10 === 0) say(`${info.name}: checked ${done} of ${list.length} members…`);
+    if (!p || String(p.status || '').startsWith('closed')) return null;
+    if (!nameRel(ccCandFrom(p, {}), q)) return null;       // only look up ratings for plausible names
+    return ccCandFrom(p, await ccStats(p.username));
+  });
+  return { cands: res.filter(Boolean), via: info.name, total: names.length, scanned: list.length };
+}
+async function scanLichessTeam(id, q, say) {
+  const info = await getJson('https://lichess.org/api/team/' + encodeURIComponent(id));
+  if (!info) throw new Error('Lichess team "' + id + '" not found');
+  const r = await fetch(`https://lichess.org/api/team/${encodeURIComponent(id)}/users`, { headers: { Accept: 'application/x-ndjson' } });
+  if (!r.ok) throw new Error('Lichess returned ' + r.status);
+  const ids = [], reader = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+  read: for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i; while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (line) { try { ids.push(JSON.parse(line).id); } catch {} }
+      if (ids.length >= 3000) { reader.cancel(); break read; }
+    }
+  }
+  say(`${info.name}: looking up ${ids.length} member profiles…`);
+  const cands = (await liUsers(ids)).filter(c => nameRel(c, q));
+  return { cands, via: info.name, total: info.nbMembers ?? ids.length, scanned: ids.length };
+}
+function parseClubLink(s) {
+  s = s.trim();
+  let m = s.match(/chess\.com\/club\/([^/?#\s]+)/i) || s.match(/api\.chess\.com\/pub\/club\/([^/?#\s]+)/i);
+  if (m) return { site: 'cc', id: m[1] };
+  m = s.match(/lichess\.org\/team\/([^/?#\s]+)/i);
+  return m ? { site: 'li', id: m[1] } : null;
+}
+let clubItems = [];
+function renderClubList() {
+  $('#c-list').innerHTML = clubItems.length ? `<div class="cands" style="margin-top:12px">${clubItems.map((c, i) => `
+    <div class="cand" style="grid-template-columns:1fr auto"><div><div class="nm">${esc(c.name)} <span class="badge">${c.site === 'cc' ? 'Chess.com' : 'Lichess'}</span></div>
+    <div class="sub">${c.n != null ? c.n.toLocaleString() + ' members' : ''}</div></div>
+    <button type="button" class="ghost" data-scan="${i}">Scan members</button></div>`).join('')}</div>
+    <div class="actions"><button type="button" class="ghost" id="c-all">Scan all listed</button></div>` : '';
+  $$('#c-list [data-scan]').forEach(b => b.onclick = () => runScan([clubItems[+b.dataset.scan]]));
+  const all = $('#c-all'); if (all) all.onclick = () => runScan(clubItems);
+}
+async function runScan(items) {
+  const q = readQuery(), st = $('#c-status');
+  if (!q.tokens.length) { st.textContent = "Type the opponent's name in the form above first."; return; }
+  $$('#club-card button').forEach(b => b.disabled = true);
+  let found = 0;
+  try {
+    for (const it of items) {
+      try {
+        const res = it.site === 'cc' ? await scanChesscomClub(it.id, q, t => { st.textContent = t; }) : await scanLichessTeam(it.id, q, t => { st.textContent = t; });
+        addCandidates(res.cands, q, res.via); found += res.cands.length;
+        st.textContent = `Scanned ${res.scanned} of ${res.total} members of ${res.via}: ${res.cands.length} with a matching name.`;
+      } catch (err) { st.textContent = err.message; }
+    }
+    FIND.q = q; renderCands(FIND.all, q);
+    if (items.length > 1) st.textContent = `Scanned ${items.length} clubs and teams: ${found} members with a matching name.`;
+  } finally { $$('#club-card button').forEach(b => b.disabled = false); }
+}
+$('#c-find').onclick = async () => {
+  const text = $('#c-text').value.trim(), q = readQuery(), st = $('#c-status');
+  const toks = fold(text).split(' ').filter(Boolean);
+  if (!toks.length) { st.textContent = 'Type a club or team name, for example a university.'; return; }
+  st.textContent = 'Searching clubs and teams…'; clubItems = [];
+  const [li, cl] = await Promise.allSettled([
+    getJson('https://lichess.org/api/team/search?text=' + encodeURIComponent(text)),
+    q.cc ? getJson(`https://api.chess.com/pub/country/${encodeURIComponent(q.cc)}/clubs`) : Promise.resolve(null)
+  ]);
+  (li.value?.currentPageResults || []).slice(0, 8).forEach(t => clubItems.push({ site: 'li', id: t.id, name: t.name, n: t.nbMembers }));
+  const slugs = (cl.value?.clubs || []).map(u => u.split('/').pop()).filter(s => toks.every(t => s.includes(t))).slice(0, 8);
+  const infos = await pool(slugs, 4, async s => { const i = await getJson('https://api.chess.com/pub/club/' + s); return i && { site: 'cc', id: s, name: i.name, n: i.members_count }; });
+  infos.filter(Boolean).forEach(i => clubItems.push(i));
+  clubItems.sort((a, b) => (b.n || 0) - (a.n || 0));
+  st.textContent = clubItems.length ? `${clubItems.length} found. Pick one to scan.` : 'Nothing found.' + (q.cc ? '' : ' Add a country code above to also search Chess.com clubs.');
+  renderClubList();
+};
+$('#c-scan-link').onclick = () => {
+  const it = parseClubLink($('#c-link').value);
+  if (!it) { $('#c-status').textContent = 'Paste a link like chess.com/club/... or lichess.org/team/...'; return; }
+  runScan([it]);
+};
+
+$('#find-form').onsubmit = async e => {
+  e.preventDefault();
+  const q = readQuery(), name = q.name;
+  if (!q.tokens.length) return;
+  store.set('find', { name, cc: q.cc, rmin: q.rmin, rmax: q.rmax, hint: q.hint, place: q.place, deep: q.deep });
+  sel.cc = sel.li = null; FIND.all = []; FIND.q = q;
+  const btn = $('#f-go'), st = $('#f-status');
+  btn.disabled = true; $('#f-results').innerHTML = ''; updateSelbar();
+  const errs = [];
+  try {
+    const G = makeGuesses(q.tokens, q.cc, q.hint, q.deep);
+    // 1. Lichess: prefix search + bulk lookup of every guess (cheap: 300 per request)
+    st.textContent = 'Lichess: searching usernames…';
+    const auto = await liAutocomplete(G.bases, n => { st.textContent = `Lichess: prefix search ${n}…`; }).catch(err => { errs.push('Lichess: ' + err.message); return new Set(); });
+    const liIds = new Set([...G.core, ...G.numeric, ...auto].map(x => x.toLowerCase()));
+    st.textContent = `Lichess: checking ${liIds.size} usernames…`;
+    let L = await liUsers(liIds).catch(err => { errs.push('Lichess: ' + err.message); return []; });
+    // 2. Chess.com: guesses + every username found on Lichess
+    const ccList = [...new Set([...G.core, ...G.numeric, ...L.map(u => u.username)].map(x => x.toLowerCase()))];
+    const C = await ccFind(ccList, n => { st.textContent = `Chess.com: checked ${n} of ${ccList.length} usernames…`; }).catch(err => { errs.push('Chess.com: ' + err.message); return []; });
+    // 3. Lichess again for usernames that exist on Chess.com
+    const have = new Set(L.map(u => u.username.toLowerCase()));
+    const extra = C.map(c => c.username.toLowerCase()).filter(u => !have.has(u) && !liIds.has(u));
+    if (extra.length) L = L.concat(await liUsers(extra).catch(() => []));
+    FIND.all = [...C, ...L].map(c => scoreCand(c, q));
+    finalise(FIND.all);
+    renderCands(FIND.all, q);
+    st.textContent = errs.length ? errs.join(' ') : 'Done.';
+  } catch (err) {
+    st.textContent = 'Something went wrong: ' + err.message;
+  } finally { btn.disabled = false; }
+};
+
+/* ---------- SCOUT: fetch + normalise ---------- */
+const MAXPLY = 24;
+const DRAWS = new Set(['agreed', 'repetition', 'stalemate', 'insufficient', '50move', 'timevsinsufficient']);
+const tcOf = s => ({ ultrabullet: 'bullet', bullet: 'bullet', blitz: 'blitz', rapid: 'rapid', classical: 'classical', correspondence: 'classical', daily: 'classical' }[String(s).toLowerCase()] || 'rapid');
+const cleanSan = m => m.replace(/[+#!?]/g, '');
+const TERM = { checkmated: 'mate', resigned: 'resign', timeout: 'time', abandoned: 'other', mate: 'mate', resign: 'resign', outoftime: 'time' };
+
+function ccMoves(pgn) {
+  const body = pgn.replace(/\{[^}]*\}/g, ' ').split('\n').filter(l => !l.startsWith('[')).join(' ');
+  return body.replace(/\d+\.+/g, ' ').split(/\s+/).filter(t => t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t)).map(cleanSan);
+}
+const OPEN_CUT = /^(.*?\b(?:Defense|Defence|Opening|Game|Attack|Gambit|System|Variation|Countergambit))\b/;
+function familyName(raw) {
+  let n = String(raw || '').split(/[:,]/)[0].replace(/'/g, '').replace(/\s+\d+\.+.*$/, '').trim();
+  const m = n.match(OPEN_CUT); if (m) n = m[1];
+  return n || 'Unknown';
+}
+
+async function fetchChesscom(user, o, say) {
+  const arch = await getJson(`https://api.chess.com/pub/player/${encodeURIComponent(user)}/games/archives`);
+  if (!arch) throw new Error(`Chess.com user "${user}" not found`);
+  const cutoff = new Date(Date.now() - o.months * 30.44 * 864e5), cutKey = o.months ? cutoff.getFullYear() * 12 + cutoff.getMonth() : -Infinity;
+  const urls = arch.archives.filter(u => { const [y, m] = u.split('/').slice(-2).map(Number); return y * 12 + m - 1 >= cutKey; }).reverse();
+  const me = user.toLowerCase(), out = [];
+  for (const [i, url] of urls.entries()) {
+    say(`Chess.com: month ${i + 1} of ${urls.length} (${out.length} games)…`);
+    const j = await getJson(url); if (!j) continue;
+    for (const g of j.games) {
+      if (g.rules !== 'chess' || !g.pgn || !o.tcs.has(tcOf(g.time_class)) || (o.rated && !g.rated)) continue;
+      const white = g.white.username.toLowerCase() === me, mine = white ? g.white : g.black, opp = white ? g.black : g.white;
+      const res = mine.result === 'win' ? 'w' : DRAWS.has(mine.result) ? 'd' : 'l';
+      const loserRes = mine.result === 'win' ? opp.result : mine.result;
+      const eco = (g.pgn.match(/\[ECOUrl "([^"]+)"\]/) || [])[1];
+      const nm = eco ? decodeURIComponent(eco.split('/openings/')[1] || '').replace(/-/g, ' ') : '';
+      const moves = ccMoves(g.pgn);
+      out.push({ site: 'cc', url: g.url, color: white ? 'white' : 'black', res, moves, tc: tcOf(g.time_class),
+        term: res === 'd' ? 'draw' : (TERM[loserRes] || 'other'), len: Math.ceil(moves.length / 2),
+        t: g.end_time * 1000, opening: familyName(nm), full: nm, opp: opp.username, oppRating: opp.rating, myRating: mine.rating });
+    }
+    if (out.length >= o.max) break;
+  }
+  return out.sort((a, b) => b.t - a.t).slice(0, o.max);
+}
+
+async function fetchLichess(user, o, say) {
+  const uid = user.toLowerCase();
+  const since = o.months ? `&since=${Math.floor(Date.now() - o.months * 30.44 * 864e5)}` : '';
+  const perf = [...o.tcs].flatMap(t => t === 'classical' ? ['classical', 'correspondence'] : t === 'bullet' ? ['bullet', 'ultraBullet'] : [t]).join(',');
+  const url = `https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${o.max}${since}&moves=true&opening=true&perfType=${perf}${o.rated ? '&rated=true' : ''}`;
+  const r = await fetch(url, { headers: { Accept: 'application/x-ndjson' } });
+  if (r.status === 404) throw new Error(`Lichess user "${user}" not found`);
+  if (r.status === 429) throw new Error('Lichess rate limit hit. Wait a minute and try again.');
+  if (!r.ok) throw new Error('Lichess returned ' + r.status);
+  const out = [], reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '';
+  const take = line => {
+    line = line.trim(); if (!line) return;
+    let g; try { g = JSON.parse(line); } catch { return; }
+    if (g.variant !== 'standard' || !g.moves || g.status === 'aborted' || g.status === 'noStart') return;
+    const w = g.players.white, b = g.players.black;
+    const white = w.user?.id === uid, mine = white ? w : b, opp = white ? b : w;
+    if (!mine.user || opp.aiLevel) return;
+    const res = !g.winner ? 'd' : (g.winner === (white ? 'white' : 'black') ? 'w' : 'l');
+    const moves = g.moves.split(' ').map(cleanSan);
+    out.push({ site: 'li', url: 'https://lichess.org/' + g.id, color: white ? 'white' : 'black', res,
+      moves, tc: tcOf(g.speed || g.perf), t: g.createdAt, len: Math.ceil(moves.length / 2),
+      term: res === 'd' ? 'draw' : (TERM[g.status] || (g.status === 'timeout' ? 'time' : 'other')),
+      opening: familyName(g.opening?.name), full: g.opening?.name || '', opp: opp.user?.name || 'Anonymous', oppRating: opp.rating, myRating: mine.rating });
+    if (out.length % 25 === 0) say(`Lichess: ${out.length} games…`);
+  };
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i; while ((i = buf.indexOf('\n')) >= 0) { take(buf.slice(0, i)); buf = buf.slice(i + 1); }
+  }
+  take(buf);
+  return out;
+}
+
+/* ---------- SCOUT: analysis ---------- */
+const mkNode = () => ({ n: 0, w: 0, d: 0, l: 0, kids: new Map() });
+const bump = (node, res) => { node.n++; node[res]++; };
+function buildTree(games) {
+  const root = mkNode();
+  for (const g of games) {
+    let n = root; bump(n, g.res);
+    for (let i = 0; i < Math.min(g.moves.length, MAXPLY); i++) {
+      let k = n.kids.get(g.moves[i]); if (!k) n.kids.set(g.moves[i], k = mkNode());
+      bump(k, g.res); n = k;
+    }
+  }
+  return root;
+}
+const score = n => n.n ? (n.w + n.d / 2) / n.n : 0;
+const sortedKids = node => [...node.kids.entries()].sort((a, b) => b[1].n - a[1].n);
+const nodeAt = (root, path) => { let n = root; for (const m of path) { n = n.kids.get(m); if (!n) return null; } return n; };
+function fmtLine(moves, start = 0) {
+  const out = [];
+  moves.forEach((m, i) => { const p = start + i; if (p % 2 === 0) out.push(`${p / 2 + 1}.`); else if (i === 0) out.push(`${(p - 1) / 2 + 1}...`); out.push(m); });
+  return out.join(' ');
+}
+const isTheirTurn = (c, plyCount) => (c === 'white') === (plyCount % 2 === 0);
+
+function likelyLines(root, c) {
+  const out = []; let guard = 0;
+  const minN = Math.max(3, Math.ceil(root.n * 0.06));   // a line must cover at least ~6% of their games
+  (function walk(node, path) {
+    if (++guard > 4000) return;
+    const kids = sortedKids(node).filter(([, k]) => k.n >= minN);
+    if (path.length >= 14 || !kids.length) { if (path.length >= 2) out.push({ path, node }); return; }
+    for (const [m, k] of kids) walk(k, [...path, m]);
+  })(root, []);
+  const uniq = new Map(out.map(x => [x.path.join(' '), x]));
+  return [...uniq.values()].sort((a, b) => b.node.n - a.node.n).slice(0, 6);
+}
+function spots(root) {
+  const found = [];
+  (function walk(node, path) {
+    if (path.length >= 3 && path.length <= 10 && node.n >= 4 && !(node.kids.size === 1 && [...node.kids.values()][0].n === node.n)) found.push({ path, node });
+    if (path.length < 10) for (const [m, k] of node.kids) walk(k, [...path, m]);
+  })(root, []);
+  const bad = [], good = [];
+  for (const s of found) { const sc = score(s.node); if (sc <= .35) bad.push(s); else if (sc >= .7) good.push(s); }
+  const dedupe = list => {
+    const kept = [];
+    for (const s of [...list].sort((a, b) => b.path.length - a.path.length))
+      if (!kept.some(k => k.path.join(' ').startsWith(s.path.join(' ')) && k.node.n >= .7 * s.node.n)) kept.push(s);
+    return kept.sort((a, b) => b.node.n - a.node.n).slice(0, 5);
+  };
+  return { bad: dedupe(bad), good: dedupe(good) };
+}
+
+function analyse(games) {
+  const A = { trees: {}, openings: {}, lines: {}, spots: {} };
+  for (const c of ['white', 'black']) {
+    const gs = games.filter(g => g.color === c);
+    A.trees[c] = buildTree(gs);
+    A.lines[c] = likelyLines(A.trees[c], c);
+    A.spots[c] = spots(A.trees[c]);
+    const m = new Map();
+    for (const g of gs) { const k = g.opening.toLowerCase().replace(/[^a-z]/g, ''); const e = m.get(k) || { name: g.opening, n: 0, w: 0, d: 0, l: 0 }; bump(e, g.res); m.set(k, e); }
+    A.openings[c] = [...m.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+  }
+  return A;
+}
+
+function tendencies(games) {
+  const T = { insights: [] }, n = games.length;
+  const losses = games.filter(g => g.res === 'l'), wins = games.filter(g => g.res === 'w');
+  const share = (list, t) => list.length ? Math.round(100 * list.filter(g => g.term === t).length / list.length) : 0;
+  T.loss = { n: losses.length, mate: share(losses, 'mate'), resign: share(losses, 'resign'), time: share(losses, 'time') };
+  T.win = { n: wins.length, mate: share(wins, 'mate'), resign: share(wins, 'resign'), time: share(wins, 'time') };
+  const lens = games.map(g => g.len).sort((a, b) => a - b);
+  T.medLen = lens[Math.floor(lens.length / 2)] || 0;
+  T.short = pct(games.filter(g => g.len < 20).length, n);
+  T.long = pct(games.filter(g => g.len >= 50).length, n);
+  const vs = (lo, hi) => { const l = games.filter(g => g.oppRating && g.myRating && g.oppRating - g.myRating >= lo && g.oppRating - g.myRating < hi); return { n: l.length, sc: pct(l.filter(g => g.res === 'w').length + l.filter(g => g.res === 'd').length / 2, l.length) }; };
+  T.vsHigher = vs(100, 9999); T.vsSimilar = vs(-100, 100); T.vsLower = vs(-9999, -100);
+  const wh = games.filter(g => g.color === 'white'), bl = games.filter(g => g.color === 'black');
+  const scoreOf = l => pct(l.filter(g => g.res === 'w').length + l.filter(g => g.res === 'd').length / 2, l.length);
+  T.scoreWhite = scoreOf(wh); T.scoreBlack = scoreOf(bl); T.nWhite = wh.length; T.nBlack = bl.length;
+  T.tc = ['bullet', 'blitz', 'rapid', 'classical'].map(t => ({ t, n: games.filter(g => g.tc === t).length })).filter(x => x.n);
+  T.form = games.slice(0, 12).map(g => g.res);
+  // latest ratings per site+tc, and a rating history for the busiest pool
+  const latest = new Map();
+  for (const g of games) { const k = g.site + g.tc; if (!latest.has(k) && g.myRating) latest.set(k, { site: g.site, tc: g.tc, r: g.myRating, n: games.filter(x => x.site === g.site && x.tc === g.tc).length }); }
+  T.ratings = [...latest.values()].sort((a, b) => b.n - a.n);
+  const top = T.ratings[0];
+  T.series = top ? games.filter(g => g.site === top.site && g.tc === top.tc && g.myRating).slice(0, 80).reverse().map(g => g.myRating) : [];
+  T.seriesLabel = top ? `${top.site === 'cc' ? 'Chess.com' : 'Lichess'} ${top.tc}` : '';
+
+  if (T.loss.n >= 5 && T.loss.time >= 30) T.insights.push(`Loses on time in <b>${T.loss.time}%</b> of their losses. Keep positions complex and the clock tense. They tend to run low.`);
+  if (T.loss.n >= 5 && T.loss.resign >= 70) T.insights.push(`Resigns in ${T.loss.resign}% of losses. They give up once clearly worse, so a safe edge often converts.`);
+  if (T.win.n >= 5 && T.win.mate >= 35) T.insights.push(`Wins by checkmate in ${T.win.mate}% of their wins. They play for attacks, so watch your king.`);
+  if (n >= 20 && T.short >= 30) T.insights.push(`${T.short}% of their games end before move 20. Expect sharp openings and traps, so know your opening well.`);
+  if (n >= 20 && T.long >= 30) T.insights.push(`${T.long}% of their games go past move 50. They grind, so endgames are not a safe place to relax.`);
+  if (T.nWhite >= 10 && T.nBlack >= 10 && Math.abs(T.scoreWhite - T.scoreBlack) >= 15)
+    T.insights.push(`They score ${T.scoreWhite}% with White but ${T.scoreBlack}% with Black, so they are ${T.scoreWhite > T.scoreBlack ? 'weaker with Black' : 'weaker with White'}.`);
+  if (T.vsHigher.n >= 8) T.insights.push(`Against opponents rated 100+ higher they score ${T.vsHigher.sc}% (${T.vsHigher.n} games).`);
+  return T;
+}
+
+/* ---------- SCOUT: board ---------- */
+const FILES = 'abcdefgh';
+const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+const hasChess = typeof Chess !== 'undefined';
+const posCache = new Map();
+function positionFor(path) {
+  const key = path.join(' ');
+  if (posCache.has(key)) return posCache.get(key);
+  const ch = new Chess(); let last = null, ok = true;
+  for (const m of path) { const mv = ch.move(m, { sloppy: true }); if (!mv) { ok = false; break; } last = mv; }
+  const p = { ch, fen: ch.fen(), last, ok };
+  posCache.set(key, p); return p;
+}
+const sqXY = (sq, flip) => { const f = FILES.indexOf(sq[0]), r = +sq[1] - 1; return [(flip ? 7 - f : f) * 100, (flip ? r : 7 - r) * 100]; };
+function arrowSvg(from, to, w, color, op, flip) {
+  const [x1, y1] = sqXY(from, flip).map(v => v + 50), [x2, y2] = sqXY(to, flip).map(v => v + 50);
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, px = -uy, py = ux, head = 34;
+  const ex = x2 - ux * head, ey = y2 - uy * head, sx = x1 + ux * 18, sy = y1 + uy * 18, hw = w * 1.1 + 9;
+  const pts = [[sx + px * w / 2, sy + py * w / 2], [ex + px * w / 2, ey + py * w / 2], [ex + px * hw, ey + py * hw], [x2 - ux * 6, y2 - uy * 6], [ex - px * hw, ey - py * hw], [ex - px * w / 2, ey - py * w / 2], [sx - px * w / 2, sy - py * w / 2]];
+  return `<polygon points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${color}" opacity="${op}"/>`;
+}
+function boardSvg(pos, flip, arrows, extra = '') {
+  let s = '<svg viewBox="0 0 800 800" role="img" aria-label="Chess position">';
+  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+    const x = (flip ? 7 - f : f) * 100, y = (flip ? r : 7 - r) * 100, dark = (f + r) % 2 === 0;
+    s += `<rect x="${x}" y="${y}" width="100" height="100" fill="${dark ? '#769656' : '#eeeed2'}"/>`;
+  }
+  if (pos.last) for (const sq of [pos.last.from, pos.last.to]) { const [x, y] = sqXY(sq, flip); s += `<rect x="${x}" y="${y}" width="100" height="100" fill="#f6e04a" opacity=".5"/>`; }
+  for (let i = 0; i < 8; i++) {
+    const fx = (flip ? 7 - i : i) * 100, ry = (flip ? i : 7 - i) * 100;
+    s += `<text x="${fx + 90}" y="792" font-size="20" text-anchor="end" font-family="system-ui" fill="${(i) % 2 === 0 ? '#eeeed2' : '#769656'}" opacity=".95">${FILES[i]}</text>`;
+    s += `<text x="8" y="${ry + 22}" font-size="20" font-family="system-ui" fill="${(i + 1) % 2 === 0 ? '#769656' : '#eeeed2'}">${i + 1}</text>`;
+  }
+  const b = pos.ch.board();
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
+    const p = b[i][j]; if (!p) continue;
+    const [x, y] = sqXY(FILES[j] + (8 - i), flip), white = p.color === 'w';
+    s += `<text x="${x + 50}" y="${y + 76}" font-size="84" text-anchor="middle" font-family="'Segoe UI Symbol','Noto Sans Symbols 2','DejaVu Sans',sans-serif" fill="${white ? '#fff' : '#1b1b1b'}" stroke="${white ? '#1b1b1b' : '#e8e8e0'}" stroke-width="${white ? 2.5 : 1.2}" paint-order="stroke">${GLYPH[p.type]}&#xFE0E;</text>`;
+  }
+  s += extra;
+  s += arrows.map(a => arrowSvg(a.from, a.to, a.w, a.color, a.op, flip)).join('');
+  return s + '</svg>';
+}
+
+/* ---------- SCOUT: engine (Lichess cloud eval) ---------- */
+const evalCache = new Map(); let evalTimer = null, evalPausedUntil = 0, evalToken = 0;
+async function cloudEval(fen) {
+  if (evalCache.has(fen)) return evalCache.get(fen);
+  if (Date.now() < evalPausedUntil) return { paused: true };
+  const r = await fetch('https://lichess.org/api/cloud-eval?multiPv=3&fen=' + encodeURIComponent(fen));
+  if (r.status === 429) { evalPausedUntil = Date.now() + 60000; return { paused: true }; }
+  const data = r.ok ? await r.json() : null;
+  evalCache.set(fen, data); return data;
+}
+const winPct = cp => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+function evalText(pv) { return pv.mate != null ? (pv.mate > 0 ? '+M' : '-M') + Math.abs(pv.mate) : (pv.cp >= 0 ? '+' : '') + (pv.cp / 100).toFixed(2); }
+function renderEngine(pos, plyCount, theirTurn) {
+  const el = $('#engine'); if (!el) return;
+  if (!hasChess || !pos.ok) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = '<span class="status">Asking Lichess cloud engine…</span>';
+  const token = ++evalToken; clearTimeout(evalTimer);
+  evalTimer = setTimeout(async () => {
+    let data; try { data = await cloudEval(pos.fen); } catch { data = undefined; }
+    if (token !== evalToken || !$('#engine')) return;
+    if (data === undefined) { el.innerHTML = '<span class="status">Engine analysis unavailable right now.</span>'; return; }
+    if (data?.paused) { el.innerHTML = '<span class="status">Engine lookups paused for a minute (rate limit). Keep browsing the moves.</span>'; return; }
+    if (!data) { el.innerHTML = '<span class="status">No cloud analysis for this exact position (it is rare). Open it in Lichess for a live engine.</span>'; return; }
+    const top = data.pvs[0], whiteView = pos.fen.split(' ')[1] === 'w';
+    const wp = top.mate != null ? (top.mate > 0 ? 100 : 0) : winPct(top.cp);
+    const lines = data.pvs.map(pv => {
+      const c2 = new Chess(pos.fen), sans = [];
+      for (const u of pv.moves.split(' ').slice(0, 6)) { const m = c2.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }); if (!m) break; sans.push(m.san); }
+      return `<div class="pv"><span class="e">${evalText(pv)}</span><span class="line">${esc(fmtLine(sans, plyCount))}</span></div>`;
+    }).join('');
+    el.innerHTML = `<b>${theirTurn ? 'Engine best moves here (they may deviate)' : 'Suggested replies for you'}</b>
+      <div class="evalbar" title="White's advantage"><i style="width:${wp.toFixed(0)}%"></i><b>${evalText(top)}</b></div>${lines}
+      <div class="legend" style="margin-top:6px">Evaluation is from White's side. Depth ${data.depth}, ${Math.round(data.knodes / 1000)}M nodes (Lichess cloud).</div>`;
+  }, 350);
+}
+
+/* ---------- SCOUT: render ---------- */
+let S = { games: [], A: null, T: null, color: 'white', path: { white: [], black: [] }, flip: null, label: '' };
+const openLine = (c, path) => {
+  const changed = S.color !== c;
+  S.color = c; S.path[c] = path; syncColorBar(); renderPlan(); renderExplorer();
+  if (changed) { renderSheet(); renderSummary(); renderPractice(true); }
+  showPanel('explorer');
+  $('#board-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+function sparkline(v) {
+  if (v.length < 3) return '';
+  const min = Math.min(...v), max = Math.max(...v), W = 300, H = 56, span = Math.max(max - min, 1);
+  const pts = v.map((r, i) => `${(i / (v.length - 1) * W).toFixed(1)},${(H - 6 - (r - min) / span * (H - 12)).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:320px;height:${H}px" role="img" aria-label="Rating trend"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
+}
+const hbar = (parts) => `<div class="hbar">${parts.map(p => `<i style="flex:${p.v};background:${p.c}" title="${esc(p.l)}"></i>`).join('')}</div>`;
+
+function render() {
+  const g = S.games, T = S.T;
+  const rec = { w: 0, d: 0, l: 0 }; g.forEach(x => rec[x.res]++);
+  const bySite = s => g.filter(x => x.site === s).length;
+  const dates = g.map(x => x.t).filter(Boolean);
+  const range = dates.length ? new Date(Math.min(...dates)).toISOString().slice(0, 10) + ' to ' + new Date(Math.max(...dates)).toISOString().slice(0, 10) : '';
+  const tcTotal = T.tc.reduce((a, x) => a + x.n, 0);
+  const TCC = { bullet: '#d9715f', blitz: '#e0a43b', rapid: '#5fb577', classical: '#4f8fd6' };
+
+  $('#report').innerHTML = `
+    ${S.staleNote ? `<div class="notice warn">${esc(S.staleNote)}</div>` : ''}
+    ${g.length < 30 ? `<div class="notice warn">Only ${g.length} games found. Treat percentages as hints, not patterns. Widen the look-back period or add the other site if they use both.</div>` : ''}
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <h2 style="margin-right:auto">${esc(S.label)}</h2>
+        <input id="r-label" type="text" placeholder="Label, e.g. Round 3 · Board 2" aria-label="Label for this opponent" style="width:15rem;max-width:100%" class="noprint">
+        <button class="ghost" id="r-copy" type="button">Copy brief</button>
+        <button class="ghost" id="r-save" type="button">Save opponent</button>
+      </div>
+      <div class="summary">
+        <div class="stat"><b>${g.length}</b><span>games analysed</span></div>
+        <div class="stat"><b>${bySite('cc')} / ${bySite('li')}</b><span>Chess.com / Lichess</span></div>
+        <div class="stat"><b>${rec.w}-${rec.d}-${rec.l}</b><span>W-D-L (${pct(rec.w + rec.d / 2, g.length)}% score)</span></div>
+        ${T.ratings.slice(0, 2).map(r => `<div class="stat"><b>${r.r}</b><span>${r.site === 'cc' ? 'Chess.com' : 'Lichess'} ${r.tc}</span></div>`).join('')}
+      </div>
+      <div class="legend">${esc(range)}</div>
+    </div>
+
+    <div class="stick noprint">
+      <div class="subtabs" id="subtabs" role="tablist" aria-label="Report sections">
+        <button type="button" role="tab" data-panel="summary" aria-selected="true">Summary</button>
+        <button type="button" role="tab" data-panel="practice" aria-selected="false">Practice</button>
+        <button type="button" role="tab" data-panel="sheet" aria-selected="false">Prep sheet</button>
+        <button type="button" role="tab" data-panel="explorer" aria-selected="false">Explorer</button>
+        <button type="button" role="tab" data-panel="habits" aria-selected="false">Habits</button>
+        <button type="button" role="tab" data-panel="games" aria-selected="false">Games</button>
+      </div>
+      <div class="colorbar" id="colorbar">
+        <span>Your colour</span>
+        <div class="seg" role="group" aria-label="Your colour">
+          <button type="button" data-color="white" aria-pressed="true">I'm Black · they play White</button>
+          <button type="button" data-color="black" aria-pressed="false">I'm White · they play Black</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="summary"><div class="card" id="summary-card"></div></div>
+    <div class="panel" data-panel="practice" hidden><div class="card" id="practice-card"></div></div>
+    <div class="panel" data-panel="sheet" hidden><div class="card" id="sheet-card"></div></div>
+    <div class="panel" data-panel="explorer" hidden>
+      <div class="card" id="plan-card"></div>
+      <div class="card" id="board-card">
+        <h3>Board explorer</h3>
+        <p class="legend" style="margin:0">Click a row to play their move on the board. Arrows show their most common moves: green for their choices, blue for what opponents played against them. Keys: ← back, → most common move, F flips.</p>
+        <div id="explorer"></div>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="habits" hidden>
+    <div class="card"><h3>Habits and tendencies</h3>
+      ${T.insights.length ? T.insights.map(i => `<div class="insight">${i}</div>`).join('') : '<p class="status">Not enough games to spot clear habits yet.</p>'}
+      <div class="tend" style="margin-top:10px">
+        <div class="tbox"><b>Recent form</b>
+          <div class="form">${T.form.map(r => `<span class="${r}">${r.toUpperCase()}</span>`).join('')}</div>
+          <div class="legend" style="margin:0">Newest first. ${T.seriesLabel ? `Rating trend, ${esc(T.seriesLabel)}:` : ''}</div>${sparkline(T.series)}</div>
+        <div class="tbox"><b>How they lose</b> <span class="legend">(${T.loss.n} losses)</span>
+          ${hbar([{ v: T.loss.resign, c: 'var(--draw)', l: 'Resign' }, { v: T.loss.time, c: '#e0a43b', l: 'Time' }, { v: T.loss.mate, c: 'var(--loss)', l: 'Mated' }, { v: Math.max(0, 100 - T.loss.resign - T.loss.time - T.loss.mate), c: 'var(--surface2)', l: 'Other' }])}
+          <div class="legend">Resign ${T.loss.resign}% · On time ${T.loss.time}% · Checkmated ${T.loss.mate}%</div>
+          <b style="display:block;margin-top:10px">How they win</b> <span class="legend">(${T.win.n} wins)</span>
+          ${hbar([{ v: T.win.resign, c: 'var(--draw)', l: 'Opp resigned' }, { v: T.win.time, c: '#e0a43b', l: 'Opp on time' }, { v: T.win.mate, c: 'var(--win)', l: 'Mate' }, { v: Math.max(0, 100 - T.win.resign - T.win.time - T.win.mate), c: 'var(--surface2)', l: 'Other' }])}
+          <div class="legend">Opp resigned ${T.win.resign}% · Opp flagged ${T.win.time}% · Mate ${T.win.mate}%</div></div>
+        <div class="tbox"><b>Game profile</b>
+          <ul><li>Median game length: <b>${T.medLen}</b> moves (${T.short}% under 20, ${T.long}% over 50)</li>
+          <li>Score as White: <b>${T.scoreWhite}%</b> (${T.nWhite} games)</li><li>Score as Black: <b>${T.scoreBlack}%</b> (${T.nBlack} games)</li>
+          ${T.vsHigher.n ? `<li>Vs higher rated: <b>${T.vsHigher.sc}%</b> (${T.vsHigher.n})</li>` : ''}${T.vsSimilar.n ? `<li>Vs similar rated: <b>${T.vsSimilar.sc}%</b> (${T.vsSimilar.n})</li>` : ''}${T.vsLower.n ? `<li>Vs lower rated: <b>${T.vsLower.sc}%</b> (${T.vsLower.n})</li>` : ''}</ul>
+          <div class="hbar" style="margin-top:8px">${T.tc.map(x => `<i style="flex:${x.n};background:${TCC[x.t]}" title="${x.t}: ${x.n}"></i>`).join('')}</div>
+          <div class="legend">${T.tc.map(x => `${x.t} ${pct(x.n, tcTotal)}%`).join(' · ')}</div></div>
+      </div>
+    </div>
+
+    <div class="card"><h3>Openings by name</h3>
+      <div class="grid g2" style="align-items:start">
+        ${['white', 'black'].map(c => `<div><b>As ${c === 'white' ? 'White' : 'Black'}</b>${openTable(S.A.openings[c])}</div>`).join('')}
+      </div>
+    </div>
+    </div>
+
+    <div class="panel" data-panel="games" hidden>
+    <div class="card"><h3>Recent games</h3>
+      <div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Site</th><th></th><th>Opponent</th><th>Opening</th><th>Result</th><th></th></tr></thead><tbody>
+      ${g.slice(0, 15).map(x => `<tr><td>${new Date(x.t).toISOString().slice(0, 10)}</td><td>${x.site === 'cc' ? 'Chess.com' : 'Lichess'}</td><td><span class="dot ${x.color}" title="${x.color}"></span></td>
+        <td>${esc(x.opp)} <span style="color:var(--muted)">${x.oppRating ?? ''}</span></td><td>${esc(x.opening)}</td>
+        <td><span class="res ${x.res}">${{ w: 'Win', d: 'Draw', l: 'Loss' }[x.res]}</span></td><td><a href="${esc(x.url)}" target="_blank" rel="noopener">Open</a></td></tr>`).join('')}
+      </tbody></table></div>
+    </div>
+    </div>`;
+  $$('#subtabs button').forEach(b => b.onclick = () => showPanel(b.dataset.panel));
+  $$('#colorbar button').forEach(b => b.onclick = () => { S.color = b.dataset.color; syncColorBar(); renderPlan(); renderExplorer(); renderSheet(); renderSummary(); renderPractice(true); });
+  $('#r-copy').onclick = async e => { try { await navigator.clipboard.writeText(briefText()); e.target.textContent = 'Copied ✓'; } catch { e.target.textContent = 'Copy failed'; } setTimeout(() => e.target.textContent = 'Copy brief', 1800); };
+  $('#r-save').onclick = e => { saveOpponent(); e.target.textContent = 'Saved ✓'; };
+  S.panel = 'summary';
+  renderSummary(); renderPlan(); renderExplorer(); renderSheet(); renderPractice(true);
+}
+function showPanel(name) {
+  S.panel = name;
+  $$('#report .panel').forEach(p => { p.hidden = p.dataset.panel !== name; });
+  $$('#subtabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.panel === name)));
+  const top = $('#subtabs'); if (top) top.scrollIntoView({ block: 'nearest' });
+}
+function syncColorBar() { $$('#colorbar button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.color === S.color))); }
+function openTable(list) {
+  if (!list.length) return '<p class="status">No games.</p>';
+  return `<table><thead><tr><th>Opening</th><th class="n">Games</th><th class="n">Score</th></tr></thead><tbody>${list.map(o =>
+    `<tr><td>${esc(o.name)}</td><td class="n">${o.n}</td><td class="n">${pct(o.w + o.d / 2, o.n)}%</td></tr>`).join('')}</tbody></table>`;
+}
+
+function renderPlan() {
+  const c = S.color, root = S.A.trees[c], el = $('#plan-card');
+  if (!root.n) { el.innerHTML = `<h3>Game plan</h3><p class="status">No games with ${c === 'white' ? 'White' : 'Black'} in this sample.</p>`; return; }
+  const me = c === 'white' ? 'Black' : 'White';
+  let head;
+  if (c === 'white') {
+    head = `<div class="subhead">Their first move (${root.n} games)</div><div class="firstmoves">${sortedKids(root).slice(0, 4).map(([m, k]) => `<span class="fm"><b>${esc(m)}</b> ${pct(k.n, root.n)}% <span style="color:var(--muted)">· ${k.n}</span></span>`).join('')}</div>`;
+  } else {
+    head = `<div class="subhead">Their reply to your first move (${root.n} games)</div><div class="firstmoves">${sortedKids(root).slice(0, 3).filter(([, k]) => k.n >= 2).map(([fm, fk]) => {
+      const reps = sortedKids(fk).slice(0, 3).map(([m, k]) => `<b>${esc(m)}</b> ${pct(k.n, fk.n)}%`).join(', ');
+      return `<span class="fm">vs <b>1.${esc(fm)}</b> (${fk.n}): ${reps}</span>`;
+    }).join('')}</div>`;
+  }
+  const spot = (list, title) => list.length ? `<div class="subhead">${title}</div><div class="plan">${list.map(s => `<div class="planrow"><div><span class="line">${esc(fmtLine(s.path))}</span>
+      <div class="meta">${s.node.w}W ${s.node.d}D ${s.node.l}L of ${s.node.n}</div></div><button class="mini" type="button" data-open="${esc(s.path.join(' '))}">Show on board</button></div>`).join('')}</div>` : '';
+  el.innerHTML = `<h3>Game plan: you have ${me}</h3>${head}
+    ${spot(S.A.spots[c].bad, 'Where they struggle (steer toward these)')}${spot(S.A.spots[c].good, 'Where they do well (be ready or avoid)')}`;
+  $$('#plan-card [data-open]').forEach(b => b.onclick = () => openLine(c, b.dataset.open.split(' ')));
+}
+
+/* ---------- PREP SHEET: your repertoire vs their likely lines ---------- */
+let ME = { cc: '', li: '', trees: null, state: 'none', n: 0 };
+let sheetToken = 0;
+
+async function loadMe(cc, li, tcs) {
+  ME = { cc, li, trees: null, state: (cc || li) ? 'loading' : 'none', n: 0 };
+  if (!cc && !li) return;
+  const attempt = async months => {
+    const o = { months, max: 1000, rated: false, tcs }, jobs = [];
+    if (cc) jobs.push(fetchChesscom(cc, o, () => {}));
+    if (li) jobs.push(fetchLichess(li, o, () => {}));
+    const out = [];
+    (await Promise.allSettled(jobs)).forEach(r => { if (r.status === 'fulfilled') out.push(...r.value); });
+    return out;
+  };
+  let games = await attempt(12);
+  if (!games.length) games = await attempt(0);       // inactive account: use whatever exists
+  if (!games.length) { ME.state = 'empty'; return; }
+  ME.trees = { white: buildTree(games.filter(g => g.color === 'white')), black: buildTree(games.filter(g => g.color === 'black')) };
+  ME.n = games.length; ME.state = 'ready';
+}
+
+function lineTarget(c, l) {
+  let path = [...l.path], node = l.node;
+  if (isTheirTurn(c, path.length)) {                 // follow their most likely move so the sheet stops where YOU must answer
+    const top = sortedKids(node)[0];
+    if (top) { path = [...path, top[0]]; node = top[1]; }
+  }
+  return { path, node, weight: l.node.n, theirScore: score(l.node) };
+}
+const verdictOf = cp => cp >= 150 ? 'clearly better' : cp >= 50 ? 'a bit better' : cp > -50 ? 'about equal' : cp > -150 ? 'a bit worse' : 'worse';
+function evalForMe(pv, my) {
+  if (pv.mate != null) { const v = my === 'white' ? pv.mate : -pv.mate; return v > 0 ? `you mate in ${Math.abs(v)}` : `they mate in ${Math.abs(v)}`; }
+  const cp = my === 'white' ? pv.cp : -pv.cp;
+  return `${cp >= 0 ? '+' : ''}${(cp / 100).toFixed(2)} (${verdictOf(cp)} for you)`;
+}
+
+async function analyseTarget(t, c, my) {
+  const myTurn = !isTheirTurn(c, t.path.length);
+  const pos = hasChess ? positionFor(t.path) : null;
+  const r = { myTurn, pos, mine: [], engine: null, status: 'unk', paused: false };
+  if (!myTurn) return r;
+  if (ME.state === 'ready') {
+    const mt = ME.trees[my], node = nodeAt(mt, t.path);
+    if (node && node.kids.size) r.mine = sortedKids(node).slice(0, 2).map(([m, k]) => ({ m, n: k.n, sc: pct(k.w + k.d / 2, k.n) }));
+    else { let k = 0, n = mt; while (k < t.path.length && n.kids.get(t.path[k])) { n = n.kids.get(t.path[k]); k++; } r.depth = k; }
+  }
+  if (pos?.ok) {
+    let d; try { d = await cloudEval(pos.fen); } catch { d = undefined; }
+    if (d?.paused) r.paused = true;
+    else if (d?.pvs) {
+      r.engine = d.pvs.map(pv => {
+        const c2 = new Chess(pos.fen), sans = []; let first = null;
+        for (const u of pv.moves.split(' ').slice(0, 5)) { const m = c2.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }); if (!m) break; if (!first) first = m; sans.push(m.san); }
+        return { pv, first, sans };
+      }).filter(e => e.first);
+    }
+    await sleep(120);
+  }
+  const top = r.mine[0], eng = r.engine?.map(e => cleanSan(e.first.san));
+  if (top) r.status = (eng && !eng.includes(top.m)) || top.n < 2 ? 'check' : 'ok';
+  else if (ME.state === 'ready') r.status = 'gap';
+  return r;
+}
+
+function sheetCard(t, r, c, my, rootN) {
+  const label = { ok: 'Prepared', check: 'Check this', gap: 'No prep yet', unk: r.myTurn ? 'Engine only' : 'Their move' }[r.status];
+  let board = '';
+  if (r.pos?.ok) {
+    const arrows = [], mv = m => new Chess(r.pos.fen).move(m, { sloppy: true });
+    const e0 = r.engine?.[0]?.first, mine = r.mine[0] ? mv(r.mine[0].m) : null;
+    if (mine && !(e0 && e0.from === mine.from && e0.to === mine.to)) arrows.push({ from: mine.from, to: mine.to, w: 16, color: '#2f6fd1', op: .75 });
+    if (e0) arrows.push({ from: e0.from, to: e0.to, w: 16, color: '#2f9e44', op: .75 });
+    board = boardSvg(r.pos, my === 'black', arrows);
+  }
+  const bits = [];
+  if (!r.myTurn) bits.push('<p>Their move comes next, so there is nothing to answer yet.</p>');
+  if (r.mine[0]) {
+    const [a, b] = r.mine;
+    bits.push(`<p>You usually play <b>${esc(a.m)}</b> here <span style="color:var(--muted)">(${a.n} game${a.n === 1 ? '' : 's'}, you score ${a.sc}%)</span>${b ? `; sometimes <b>${esc(b.m)}</b> (${b.n})` : ''}.</p>`);
+  } else if (ME.state === 'ready' && r.myTurn) {
+    bits.push(`<p><b>You have no games in this position.</b> ${r.depth > 0 ? `Your experience ends after <span class="line">${esc(fmtLine(t.path.slice(0, r.depth)))}</span>.` : `You have not played this opening as ${my === 'white' ? 'White' : 'Black'}.`}</p>`);
+  }
+  if (r.engine?.length) {
+    const e = r.engine;
+    bits.push(`<p>Engine suggests <b>${esc(e[0].first.san)}</b>, ${esc(evalForMe(e[0].pv, my))}${e[1] ? `. Also: ${e.slice(1).map(x => `<b>${esc(x.first.san)}</b>`).join(', ')}` : ''}.</p>`);
+    if (r.mine[0] && !e.map(x => cleanSan(x.first.san)).includes(r.mine[0].m)) bits.push(`<p style="color:var(--warn-ink)">Your usual ${esc(r.mine[0].m)} is not in the engine's top ${e.length}. Worth checking.</p>`);
+  } else if (r.myTurn && r.paused) bits.push('<p class="status">Engine lookups paused (rate limit).</p>');
+  else if (r.myTurn && hasChess) bits.push('<p class="status">No cloud analysis for this position (rare line).</p>');
+  return `<div class="sb">${board}</div><div>
+    <span class="st ${r.status}">${label}</span>
+    <span class="line">${esc(fmtLine(t.path))}</span>
+    <div class="legend" style="margin:0">${t.weight} of their games (${pct(t.weight, rootN)}%) · they score ${Math.round(t.theirScore * 100)}% here</div>
+    ${bits.join('')}
+    <textarea class="snote" rows="2" data-key="${esc(noteKey(my, t.path))}" placeholder="My plan or note for this line" aria-label="My note for this line">${esc(store.get('notes', {})[noteKey(my, t.path)] || '')}</textarea>
+    <div class="cta noprint" style="margin-top:8px"><button class="mini" type="button" data-sopen="${esc(t.path.join(' '))}">Show on board</button>
+      <button class="mini" type="button" data-spractice="${esc(t.path.join(' '))}">Practice this</button></div></div>`;
+}
+const noteKey = (my, path) => `${S.label}|${my}|${path.join(' ')}`;
+window.addEventListener('beforeprint', () => $$('.snote').forEach(t => t.toggleAttribute('data-empty', !t.value.trim())));
+
+async function renderSheet() {
+  const el = $('#sheet-card'); if (!el || !S.A) return;
+  const token = ++sheetToken, c = S.color, my = c === 'white' ? 'black' : 'white', root = S.A.trees[c];
+  const myName = my === 'white' ? 'White' : 'Black';
+  const head = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="margin:0;margin-right:auto">Prep sheet: you have ${myName}</h3><button class="ghost noprint" id="sheet-print" type="button">Print / save as PDF</button></div>`;
+  if (!root.n) { el.innerHTML = head + `<p class="status">No games with ${c === 'white' ? 'White' : 'Black'} in this sample.</p>`; return; }
+  const note = ME.state === 'ready' ? `Checked against ${ME.n} of your own games.`
+    : ME.state === 'loading' ? 'Loading your own games…'
+    : ME.state === 'empty' ? 'Could not find games for your usernames, so this shows engine suggestions only.'
+    : 'Add your own usernames above (optional) to check each line against what you actually play. For now this shows engine suggestions only.';
+  const targets = S.A.lines[c].slice(0, 8).map(l => lineTarget(c, l));
+  el.innerHTML = head + `<p class="legend noprint" style="margin:4px 0 0">${esc(note)}</p><div id="sheet-sum"></div>
+    ${targets.length ? `<div class="sheet">${targets.map((t, i) => `<div class="scard" id="sc-${i}"><span class="status">Analysing line ${i + 1}…</span></div>`).join('')}</div>` : '<p class="status">Not enough repeated lines yet. Try a longer look-back.</p>'}
+    <div class="key"><span><i style="background:#2f9e44"></i>Engine's best move</span><span><i style="background:#2f6fd1"></i>Your usual move</span><span>Board is shown from your side. Source: ${esc(S.label)}, ${S.games.length} games.</span></div>`;
+  $('#sheet-print').onclick = () => window.print();
+  const done = [];
+  for (let i = 0; i < targets.length; i++) {
+    const t = targets[i], r = await analyseTarget(t, c, my);
+    if (token !== sheetToken) return;                       // colour changed or a new report started
+    done.push({ t, r });
+    const card = $('#sc-' + i); card.innerHTML = sheetCard(t, r, c, my, root.n);
+    const b = $('[data-sopen]', card); if (b) b.onclick = () => openLine(c, b.dataset.sopen.split(' '));
+    const pb = $('[data-spractice]', card); if (pb) pb.onclick = () => startPracticeAt(pb.dataset.spractice.split(' '));
+    const nt = $('.snote', card); if (nt) nt.oninput = e => { const n = store.get('notes', {}); n[nt.dataset.key] = e.target.value; store.set('notes', n); };
+  }
+  (S.sheetDone ||= {})[c] = done;
+  const tot = done.reduce((a, x) => a + x.t.weight, 0) || 1, w = s => done.filter(x => x.r.status === s).reduce((a, x) => a + x.t.weight, 0);
+  const todo = done.filter(x => x.r.status === 'gap' || x.r.status === 'check').sort((a, b) => b.t.weight - a.t.weight).slice(0, 3);
+  $('#sheet-sum').innerHTML = `<div class="sumline"><span>These ${done.length} lines cover <b>${pct(tot, root.n)}%</b> of their ${c === 'white' ? 'White' : 'Black'} games.</span>
+    ${ME.state === 'ready' ? `<span>You are prepared for <b>${pct(w('ok'), tot)}%</b> of that, ${pct(w('check'), tot)}% needs a check, ${pct(w('gap'), tot)}% has no prep.</span>` : ''}
+    ${todo.length ? `<span>Study first: ${todo.map(x => `<span class="line">${esc(fmtLine(x.t.path))}</span>`).join(' · ')}</span>` : ''}</div>`;
+  renderSummary();
+}
+
+/* ---------- SUMMARY: the one-screen briefing ---------- */
+function renderSummary() {
+  const el = $('#summary-card'); if (!el || !S.A) return;
+  const c = S.color, my = c === 'white' ? 'black' : 'white', A = S.A, T = S.T, root = A.trees[c];
+  const myName = my === 'white' ? 'White' : 'Black', theirName = c === 'white' ? 'White' : 'Black';
+  if (!root.n) { el.innerHTML = `<h3>Summary</h3><p class="status">No games with ${theirName} in this sample, so there is nothing to prepare for as ${myName}. Try the other colour.</p>`; return; }
+  const open = (p, label = 'Show on board') => `<button class="mini" type="button" data-open="${esc(p.join(' '))}">${label}</button>`;
+  const prac = p => `<button class="mini" type="button" data-practice="${esc(p.join(' '))}">Practice</button>`;
+
+  const expect = [];
+  if (c === 'white') {
+    const kids = sortedKids(root).slice(0, 3);
+    expect.push(`They open ${kids.map(([m, k]) => `<b>1.${esc(m)}</b> (${pct(k.n, root.n)}%)`).join(', ')}.`);
+  } else {
+    sortedKids(root).slice(0, 2).filter(([, k]) => k.n >= 2).forEach(([fm, fk]) => {
+      const r = sortedKids(fk)[0]; if (r) expect.push(`If you open <b>1.${esc(fm)}</b>, they answer <b>${esc(r[0])}</b> ${pct(r[1].n, fk.n)}% of the time.`);
+    });
+  }
+  const fav = A.openings[c][0];
+  if (fav) expect.push(`Favourite opening: <b>${esc(fav.name)}</b>, ${fav.n} games, they score ${pct(fav.w + fav.d / 2, fav.n)}%.`);
+  const top = A.lines[c][0];
+  if (top) expect.push(`Most repeated line (${top.node.n} games): <span class="line">${esc(fmtLine(top.path))}</span> ${open(top.path)}`);
+
+  const steer = A.spots[c].bad.slice(0, 2), beware = A.spots[c].good.slice(0, 2);
+  const spotLi = s => `<li><span class="line">${esc(fmtLine(s.path))}</span><div class="row2"><span class="legend" style="margin:0">${s.node.w}W ${s.node.d}D ${s.node.l}L of ${s.node.n}</span><span>${prac(s.path)} ${open(s.path, 'Board')}</span></div></li>`;
+
+  const done = S.sheetDone?.[c];
+  let study;
+  if (done && ME.state === 'ready') {
+    const todo = done.filter(x => x.r.status === 'gap' || x.r.status === 'check').sort((a, b) => b.t.weight - a.t.weight).slice(0, 4);
+    study = todo.length ? `<ul>${todo.map(x => `<li><span class="st ${x.r.status}">${x.r.status === 'gap' ? 'No prep' : 'Check'}</span> <span class="line">${esc(fmtLine(x.t.path))}</span>
+        <div class="row2"><span class="legend" style="margin:0">${x.t.weight} of their games</span><span>${prac(x.t.path)} ${open(x.t.path, 'Board')}</span></div></li>`).join('')}</ul>`
+      : '<p>You have covered their main lines. Use Practice to keep them fresh.</p>';
+  } else if (ME.state === 'loading') {
+    study = '<p class="status">Checking your own games against their lines…</p>';
+  } else {
+    const lines = A.lines[c].slice(0, 3);
+    study = `<p class="legend" style="margin-top:0">${ME.state === 'none' ? 'Add your own usernames in the Scout form for a personal study list. Meanwhile, their three most common lines:' : 'Could not read your games. Their three most common lines:'}</p>
+      <ul>${lines.map(l => `<li><span class="line">${esc(fmtLine(l.path))}</span><div class="row2"><span class="legend" style="margin:0">${l.node.n} games</span><span>${prac(l.path)} ${open(l.path, 'Board')}</span></div></li>`).join('')}</ul>`;
+  }
+
+  const newest = S.games[0]?.t ? new Date(S.games[0].t).toISOString().slice(0, 10) : '';
+  el.innerHTML = `<h3>Before the round: you have ${myName}</h3>
+    <p class="lead" style="margin:0 0 4px">Based on ${root.n} of their games as ${theirName}${newest ? `, newest ${newest}` : ''}. Practice puts you on the board against their real moves.</p>
+    <div class="sumgrid">
+      <div class="sbox"><h4>What to expect</h4><ul>${expect.map(e => `<li>${e}</li>`).join('') || '<li>Not enough games to say.</li>'}</ul></div>
+      <div class="sbox"><h4>Study first</h4>${study}</div>
+      <div class="sbox"><h4>Steer toward (they struggle)</h4>${steer.length ? `<ul>${steer.map(spotLi).join('')}</ul>` : '<p class="status">No clear weak line yet.</p>'}</div>
+      <div class="sbox"><h4>Be ready for (they do well)</h4>${beware.length ? `<ul>${beware.map(spotLi).join('')}</ul>` : '<p class="status">No standout strength yet.</p>'}</div>
+      ${T.insights.length ? `<div class="sbox" style="grid-column:1/-1"><h4>Habits</h4><ul>${T.insights.slice(0, 3).map(i => `<li>${i}</li>`).join('')}</ul></div>` : ''}
+    </div>
+    <div class="cta"><button class="primary" type="button" data-goto="practice">Start practice</button><button class="ghost" type="button" data-goto="sheet">Open prep sheet</button><button class="ghost" type="button" data-goto="explorer">Explore their moves</button></div>`;
+  $$('#summary-card [data-open]').forEach(b => b.onclick = () => openLine(c, b.dataset.open.split(' ')));
+  $$('#summary-card [data-practice]').forEach(b => b.onclick = () => startPracticeAt(b.dataset.practice.split(' ')));
+  $$('#summary-card [data-goto]').forEach(b => b.onclick = () => showPanel(b.dataset.goto));
+}
+
+/* ---------- PRACTICE: play against their real repertoire ---------- */
+let PR = null;
+function practiceReset() {
+  PR = { c: S.color, my: S.color === 'white' ? 'black' : 'white', ch: null, path: [], log: [], over: false, end: null, started: false,
+    selected: null, targets: [], hint: null, busy: false, mode: PR?.mode || 'sample', startIdx: PR?.startIdx ?? '', last: null, flip: null, custom: null,
+    tally: { best: 0, good: 0, ok: 0, inacc: 0, bad: 0, none: 0 } };
+}
+const VERDICT = { best: 'Best', good: 'Good', ok: 'OK', inacc: 'Inaccuracy', bad: 'Mistake', none: 'No data' };
+const plyLabel = i => i % 2 === 0 ? `${i / 2 + 1}.` : `${(i - 1) / 2 + 1}...`;
+
+function renderPractice(reset) {
+  const el = $('#practice-card'); if (!el || !S.A) return;
+  if (reset || !PR || PR.c !== S.color) practiceReset();
+  const c = PR.c, my = PR.my, myName = my === 'white' ? 'White' : 'Black', root = S.A.trees[c];
+  if (!root.n) { el.innerHTML = `<h3>Practice</h3><p class="status">No games with ${c === 'white' ? 'White' : 'Black'} in this sample. Try the other colour.</p>`; return; }
+  if (!hasChess) { el.innerHTML = '<h3>Practice</h3><div class="notice warn">The chess library could not load (check your internet connection).</div>'; return; }
+  const flip = PR.flip ?? (my === 'black');
+  const lines = S.A.lines[c];
+  const opts = `<option value="">From move 1</option>` + lines.map((l, i) => `<option value="${i}" ${String(PR.startIdx) === String(i) ? 'selected' : ''}>${esc(fmtLine(l.path))} (${l.node.n} games)</option>`).join('');
+  const pos = { ch: PR.ch || new Chess(), last: PR.last, ok: true };
+  let extra = '';
+  if (PR.selected) {
+    const [x, y] = sqXY(PR.selected, flip); extra += `<rect x="${x}" y="${y}" width="100" height="100" fill="#3b82f6" opacity=".4"/>`;
+    for (const t of PR.targets) {
+      const [tx, ty] = sqXY(t.to, flip);
+      extra += PR.ch.get(t.to) ? `<circle cx="${tx + 50}" cy="${ty + 50}" r="44" fill="none" stroke="#1b1b1b" stroke-width="8" opacity=".35"/>` : `<circle cx="${tx + 50}" cy="${ty + 50}" r="17" fill="#1b1b1b" opacity=".35"/>`;
+    }
+  }
+  const arrows = PR.hint ? [{ from: PR.hint.from, to: PR.hint.to, w: 16, color: '#2f9e44', op: .85 }] : [];
+  const myTurn = PR.started && !PR.over && !isTheirTurn(c, PR.path.length);
+  const status = !PR.started ? `Pick a start and press Start. You play ${myName}.`
+    : PR.over ? 'Drill finished.' : PR.busy ? 'Thinking…' : myTurn ? `Your move (${myName}).` : 'Their move…';
+  const t = PR.tally, nMine = PR.log.filter(l => l.kind === 'me').length;
+  el.innerHTML = `<h3>Practice: you are ${myName}, they play their usual ${c === 'white' ? 'White' : 'Black'}</h3>
+    <p class="lead" style="margin:0 0 4px">They answer with moves from their real games. After each of your moves the engine gives a verdict. The drill ends when you leave their book, which is exactly where you want to know you are comfortable.</p>
+    <div class="prbar noprint">
+      <div><label for="pr-start">Start from</label><select id="pr-start">${opts}</select></div>
+      <div><label for="pr-mode">They play</label><select id="pr-mode"><option value="sample" ${PR.mode === 'sample' ? 'selected' : ''}>Like in their games (varies)</option><option value="main" ${PR.mode === 'main' ? 'selected' : ''}>Their usual move every time</option></select></div>
+      <button class="primary" id="pr-go" type="button">${PR.started ? 'Restart' : 'Start drill'}</button>
+    </div>
+    <div class="prgrid">
+      <div>
+        <div class="boardwrap" id="pr-board">${boardSvg(pos, flip, arrows, extra)}</div>
+        <div class="bctl"><button type="button" id="pr-hint" ${myTurn ? '' : 'disabled'}>Hint</button><button type="button" id="pr-flip">⇅ Flip</button></div>
+        <p class="status" id="pr-status" style="text-align:center;margin:0">${esc(status)}</p>
+      </div>
+      <div>
+        ${PR.end ? `<div class="endbox"><b>${esc(PR.end.title)}</b>${esc(PR.end.text)}
+          ${nMine ? `<div style="margin-top:6px">Your ${nMine} move${nMine === 1 ? '' : 's'}: ${['best', 'good', 'ok', 'inacc', 'bad'].filter(k => t[k]).map(k => `${t[k]} ${VERDICT[k].toLowerCase()}`).join(' · ') || 'no engine verdicts available'}.</div>` : ''}
+          <div class="cta noprint" style="margin-top:8px"><a class="mini" style="text-decoration:none;padding:2px 9px" href="https://lichess.org/analysis/${PR.ch.fen().replace(/ /g, '_')}" target="_blank" rel="noopener">Analyse on Lichess ↗</a></div></div>` : ''}
+        <div class="plog" id="pr-log">${PR.log.length ? PR.log.map(l => `<div class="pl ${l.kind === 'me' ? 'me' : ''}"><span class="mvn">${plyLabel(l.ply)}</span><span><b>${esc(l.san)}</b> ${l.verdict ? `<span class="vd ${l.verdict}">${VERDICT[l.verdict]}</span>` : ''}<span class="legend" style="margin:0">${esc(l.note || '')}</span></span></div>`).join('') : '<p class="status">Moves appear here.</p>'}</div>
+      </div>
+    </div>`;
+  $('#pr-go').onclick = () => practiceStart();
+  $('#pr-start').onchange = e => { PR.startIdx = e.target.value; };
+  $('#pr-mode').onchange = e => { PR.mode = e.target.value; };
+  $('#pr-flip').onclick = () => { PR.flip = !flip; renderPractice(); };
+  $('#pr-hint').onclick = practiceHint;
+  $('#pr-board').onclick = e => {
+    const svg = $('#pr-board svg'), r = svg.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width * 8), y = Math.floor((e.clientY - r.top) / r.height * 8);
+    if (x < 0 || x > 7 || y < 0 || y > 7) return;
+    practiceClick(FILES[flip ? 7 - x : x] + ((flip ? y : 7 - y) + 1));
+  };
+  const lg = $('#pr-log'); if (lg) lg.scrollTop = lg.scrollHeight;
+}
+
+function startPracticeAt(path) { showPanel('practice'); practiceStart(path); }
+async function practiceStart(customPath) {
+  const startIdx = $('#pr-start')?.value ?? '', mode = $('#pr-mode')?.value ?? 'sample';
+  practiceReset(); const self = PR; PR.mode = mode; PR.startIdx = customPath ? '' : startIdx;
+  PR.started = true; PR.ch = new Chess();
+  const path = customPath || (startIdx === '' ? [] : S.A.lines[PR.c][+startIdx].path);
+  for (const m of path) {
+    const mv = PR.ch.move(m, { sloppy: true }); if (!mv) break;
+    PR.path.push(cleanSan(mv.san)); PR.last = mv;
+    PR.log.push({ kind: 'pre', san: mv.san, ply: PR.path.length - 1, note: 'opening line' });
+  }
+  renderPractice();
+  if (isTheirTurn(PR.c, PR.path.length)) await practiceTheirMove(self);
+}
+async function practiceTheirMove(self) {
+  if (PR !== self || self.over) return;
+  const node = nodeAt(S.A.trees[self.c], self.path);
+  if (!node || !node.kids.size) return practiceEnd(self, 'Out of their book', `They have no recorded games beyond this point${node ? ` (${node.n} game${node.n === 1 ? '' : 's'} reached it)` : ''}. From here it is your own judgement.`);
+  self.busy = true; renderPractice(); await sleep(450);
+  if (PR !== self) return;
+  const kids = sortedKids(node), total = kids.reduce((a, [, k]) => a + k.n, 0);
+  let pick = kids[0];
+  if (self.mode === 'sample') { let r = Math.random() * total; for (const k of kids) { r -= k[1].n; if (r <= 0) { pick = k; break; } } }
+  const mv = self.ch.move(pick[0], { sloppy: true });
+  if (!mv) return practiceEnd(self, 'Out of their book', 'Could not replay their move.');
+  self.path.push(cleanSan(mv.san)); self.last = mv; self.busy = false;
+  self.log.push({ kind: 'them', san: mv.san, ply: self.path.length - 1, note: `their choice, seen in ${pick[1].n} of ${total} games` });
+  if (self.ch.game_over()) return practiceEnd(self, 'Game over', self.ch.in_checkmate() ? 'Checkmate.' : 'The game is drawn.');
+  renderPractice();
+}
+function practiceEnd(self, title, text) { if (PR !== self) return; self.over = true; self.busy = false; self.end = { title, text }; renderPractice(); }
+
+function practiceClick(sq) {
+  if (!PR?.started || PR.over || PR.busy || isTheirTurn(PR.c, PR.path.length)) return;
+  if (PR.selected) {
+    const ts = PR.targets.filter(m => m.to === sq);
+    if (ts.length) return practicePlay(ts.find(m => m.promotion === 'q') || ts[0]);
+  }
+  const p = PR.ch.get(sq), mine = PR.my === 'white' ? 'w' : 'b';
+  PR.hint = null;
+  if (p && p.color === mine && sq !== PR.selected) { PR.selected = sq; PR.targets = PR.ch.moves({ square: sq, verbose: true }); }
+  else { PR.selected = null; PR.targets = []; }
+  renderPractice();
+}
+async function practicePlay(t) {
+  const self = PR, fenBefore = self.ch.fen();
+  const mv = self.ch.move({ from: t.from, to: t.to, promotion: t.promotion }); if (!mv) return;
+  self.selected = null; self.targets = []; self.hint = null; self.busy = true;
+  const san = cleanSan(mv.san), ply = self.path.length; self.path.push(san); self.last = mv;
+  renderPractice();
+  const j = await judgeMove(self, fenBefore, self.ch.fen(), san);
+  if (PR !== self) return;
+  self.tally[j.v]++; self.log.push({ kind: 'me', san: mv.san, ply, verdict: j.v, note: j.note });
+  if (self.ch.game_over()) return practiceEnd(self, 'Game over', self.ch.in_checkmate() ? 'Checkmate.' : 'The game is drawn.');
+  const parent = nodeAt(S.A.trees[self.c], self.path.slice(0, -1)), node = nodeAt(S.A.trees[self.c], self.path);
+  if (!node) return practiceEnd(self, 'You are out of their book', `A novelty. In ${parent ? parent.n : 0} game${parent && parent.n === 1 ? '' : 's'} they have faced ${parent ? parent.kids.size : 0} different move${parent && parent.kids.size === 1 ? '' : 's'} here, never ${san}. They would be on their own from this point.`);
+  self.busy = false; renderPractice();
+  await practiceTheirMove(self);
+}
+async function judgeMove(self, fenBefore, fenAfter, san) {
+  const my = self.my, cpOf = pv => pv.mate != null ? (pv.mate > 0 ? 10000 : -10000) : pv.cp, mine = pv => my === 'white' ? cpOf(pv) : -cpOf(pv);
+  let d0; try { d0 = await cloudEval(fenBefore); } catch {}
+  if (!d0 || d0.paused || !d0.pvs) return { v: 'none', note: d0?.paused ? 'Engine lookups paused (rate limit).' : 'No engine data for this position.' };
+  const c0 = new Chess(fenBefore);
+  const ranked = d0.pvs.map(pv => { const u = pv.moves.split(' ')[0], m = c0.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }); if (m) c0.undo(); return { pv, san: m ? cleanSan(m.san) : '', raw: m ? m.san : '?' }; });
+  const best = ranked[0], idx = ranked.findIndex(r => r.san === san);
+  let loss;
+  if (idx >= 0) loss = mine(best.pv) - mine(ranked[idx].pv);
+  else {
+    let d1; try { d1 = await cloudEval(fenAfter); } catch {}
+    if (!d1 || d1.paused || !d1.pvs) return { v: 'none', note: `Not in the engine's top 3. It prefers ${best.raw}: ${evalForMe(best.pv, my)}.` };
+    loss = mine(best.pv) - mine(d1.pvs[0]);
+  }
+  loss = Math.max(0, loss);
+  const v = loss <= 15 ? 'best' : loss <= 45 ? 'good' : loss <= 100 ? 'ok' : loss <= 200 ? 'inacc' : 'bad';
+  const note = idx === 0 ? `Engine's top choice: ${evalForMe(best.pv, my)}.` : `Engine prefers ${best.raw}: ${evalForMe(best.pv, my)}. Yours costs about ${(Math.min(loss, 999) / 100).toFixed(1)}.`;
+  return { v, note };
+}
+async function practiceHint() {
+  const self = PR; if (!self?.started || self.over || self.busy) return;
+  let d; try { d = await cloudEval(self.ch.fen()); } catch {}
+  if (PR !== self) return;
+  const u = d?.pvs?.[0]?.moves.split(' ')[0];
+  if (!u) { $('#pr-status').textContent = 'No engine hint for this position.'; return; }
+  self.hint = { from: u.slice(0, 2), to: u.slice(2, 4) }; self.selected = null; self.targets = [];
+  renderPractice();
+}
+
+function renderExplorer() {
+  const c = S.color, path = S.path[c], root = S.A.trees[c], node = nodeAt(root, path) || root;
+  const theirTurn = isTheirTurn(c, path.length);
+  const kids = sortedKids(node).slice(0, 12);
+  const flip = S.flip ?? (c === 'white');           // show from your side
+  const lab = (p, m) => p % 2 === 0 ? `${p / 2 + 1}. ${m}` : `${(p - 1) / 2 + 1}... ${m}`;
+  const pos = hasChess ? positionFor(path) : null;
+  let board = '<div class="notice warn">The board library could not load (check your internet connection). The move list below still works.</div>';
+  if (pos?.ok) {
+    const total = kids.reduce((a, [, k]) => a + k.n, 0) || 1;
+    const arrows = kids.slice(0, 4).map(([m, k]) => {
+      const t = new Chess(pos.fen).move(m, { sloppy: true }); if (!t) return null;
+      return { from: t.from, to: t.to, w: 10 + 22 * k.n / total, color: theirTurn ? '#2f9e44' : '#2f6fd1', op: .35 + .5 * k.n / total };
+    }).filter(Boolean);
+    board = `<div class="boardwrap">${boardSvg(pos, flip, arrows)}</div>`;
+  }
+  const games = S.games.filter(g => g.color === c && path.every((m, i) => g.moves[i] === m)).slice(0, 6);
+  $('#explorer').innerHTML = `<div class="xgrid">
+    <div>${board}
+      <div class="bctl">
+        <button type="button" id="b-start" aria-label="Back to start" ${path.length ? '' : 'disabled'}>⏮</button>
+        <button type="button" id="b-back" aria-label="Back one move" ${path.length ? '' : 'disabled'}>◀</button>
+        <button type="button" id="b-fwd" aria-label="Play most common move" ${kids.length ? '' : 'disabled'}>▶</button>
+        <button type="button" id="b-flip" aria-label="Flip board">⇅ Flip</button>
+      </div>
+      <div class="engine" id="engine" hidden></div>
+    </div>
+    <div>
+      <div class="crumbs"><button type="button" data-i="0">Start</button>${path.map((m, i) => `<button type="button" data-i="${i + 1}">${esc(lab(i, m))}</button>`).join('')}</div>
+      <p class="legend" style="margin:0 0 8px">${node.n} game${node.n === 1 ? '' : 's'} reached this position. ${kids.length ? (theirTurn ? '<b>Shaded rows are their choices.</b>' : 'Rows are what their opponents played against them.') : 'No further games.'}${node.n < 5 && node.n > 0 ? ' Small sample.' : ''}</p>
+      <div class="rows">${kids.map(([m, k]) => `
+        <button type="button" class="row ${theirTurn ? 'theirs' : ''}" data-m="${esc(m)}">
+          <span class="mv">${esc(lab(path.length, m))}</span>
+          <span class="bar"><i style="width:${pct(k.n, node.n)}%"></i></span>
+          <span class="cnt">${k.n} · ${pct(k.n, node.n)}%</span>
+          <span class="wdl" title="${k.w}W ${k.d}D ${k.l}L"><i class="w" style="flex:${k.w}"></i><i class="d" style="flex:${k.d}"></i><i class="l" style="flex:${k.l}"></i></span>
+          <span class="sc">${pct(k.w + k.d / 2, k.n)}%</span>
+        </button>`).join('')}</div>
+      <p class="legend">Bar = share of games. Colours = their wins (green), draws (grey), losses (red). Last figure = their score. Depth limit ${MAXPLY / 2} moves.</p>
+      ${games.length ? `<div class="subhead">Their games through this position</div><table><tbody>${games.map(x => `<tr><td>${new Date(x.t).toISOString().slice(0, 10)}</td><td>vs ${esc(x.opp)} <span style="color:var(--muted)">${x.oppRating ?? ''}</span></td><td><span class="res ${x.res}">${{ w: 'W', d: 'D', l: 'L' }[x.res]}</span></td><td><a href="${esc(x.url)}" target="_blank" rel="noopener">Replay</a></td></tr>`).join('')}</tbody></table>` : ''}
+      ${pos?.ok ? `<p class="legend"><a href="https://lichess.org/analysis/${pos.fen.replace(/ /g, '_')}" target="_blank" rel="noopener">Open this position in Lichess analysis ↗</a></p>` : ''}
+    </div></div>`;
+  $$('#explorer .crumbs button').forEach(b => b.onclick = () => { S.path[c] = path.slice(0, +b.dataset.i); renderExplorer(); });
+  $$('#explorer .row').forEach(b => b.onclick = () => { S.path[c] = [...path, b.dataset.m]; renderExplorer(); });
+  const back = () => { if (path.length) { S.path[c] = path.slice(0, -1); renderExplorer(); } };
+  const fwd = () => { if (kids.length) { S.path[c] = [...path, kids[0][0]]; renderExplorer(); } };
+  $('#b-start').onclick = () => { S.path[c] = []; renderExplorer(); };
+  $('#b-back').onclick = back; $('#b-fwd').onclick = fwd;
+  $('#b-flip').onclick = () => { S.flip = !flip; renderExplorer(); };
+  S.keys = { back, fwd, flip: () => { S.flip = !flip; renderExplorer(); } };
+  if (pos?.ok) renderEngine(pos, path.length, theirTurn);
+}
+document.addEventListener('keydown', e => {
+  if (!S.keys || e.target.closest('input,select,textarea') || e.ctrlKey || e.metaKey || e.altKey || $('#view-scout').hidden) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); S.keys.back(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); S.keys.fwd(); }
+  else if (e.key === 'f' || e.key === 'F') S.keys.flip();
+});
+
+function briefText() {
+  const g = S.games, T = S.T, strip = h => h.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&');
+  const out = [`Scouting report: ${S.label}`, `${g.length} games (${g.filter(x => x.site === 'cc').length} Chess.com, ${g.filter(x => x.site === 'li').length} Lichess)`, ''];
+  for (const c of ['white', 'black']) {
+    const root = S.A.trees[c]; if (!root.n) continue;
+    out.push(`When they play ${c === 'white' ? 'White' : 'Black'} (${root.n} games):`);
+    out.push(...S.A.lines[c].slice(0, 4).map(l => `- ${fmtLine(l.path)} (${l.node.n} games, they score ${pct(l.node.w + l.node.d / 2, l.node.n)}%)`));
+    out.push(...S.A.spots[c].bad.slice(0, 3).map(s => `- Weak spot: ${fmtLine(s.path)} (${s.node.w}W ${s.node.d}D ${s.node.l}L)`), '');
+  }
+  if (T.insights.length) out.push('Habits:', ...T.insights.map(i => '- ' + strip(i)));
+  return out.join('\n');
+}
+
+/* ---------- SCOUT: run + save ---------- */
+function loadSaved() {
+  const list = store.get('saved', []), el = $('#saved');
+  el.hidden = !list.length;
+  el.innerHTML = list.length ? '<span class="status">Saved:</span>' + list.map((s, i) =>
+    `<span class="chipbtn"><button type="button" data-load="${i}">${esc(s.label)}</button><button type="button" data-del="${i}" aria-label="Remove ${esc(s.label)}">×</button></span>`).join('') : '';
+  $$('#saved [data-load]').forEach(b => b.onclick = () => { const s = list[+b.dataset.load]; $('#s-cc').value = s.cc || ''; $('#s-li').value = s.li || ''; $('#scout-form').requestSubmit(); });
+  $$('#saved [data-del]').forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); store.set('saved', list); loadSaved(); });
+}
+function saveOpponent() {
+  const cc = cleanUser($('#s-cc').value), li = cleanUser($('#s-li').value);
+  const list = store.get('saved', []).filter(s => !(s.cc === cc && s.li === li));
+  const names = [cc, li].filter(Boolean).join(' / '), tag = ($('#r-label')?.value || '').trim();
+  list.unshift({ label: tag ? `${tag}: ${names}` : names, cc, li });
+  store.set('saved', list.slice(0, 20)); loadSaved();
+}
+
+$('#scout-form').onsubmit = async e => {
+  e.preventDefault();
+  const cc = cleanUser($('#s-cc').value), li = cleanUser($('#s-li').value);
+  const st = $('#s-status'), btn = $('#s-go');
+  if (!cc && !li) { st.textContent = 'Enter at least one username.'; return; }
+  const tcs = new Set($$('input[name=tc]:checked').map(x => x.value));
+  if (!tcs.size) { st.textContent = 'Pick at least one time control.'; return; }
+  const o = { months: +$('#s-months').value, max: +$('#s-max').value, rated: $('#s-rated').checked, tcs };
+  btn.disabled = true; $('#report').innerHTML = '';
+  const say = t => { st.textContent = t; };
+  const run = async opts => {
+    const jobs = [];
+    if (cc) jobs.push(fetchChesscom(cc, opts, say));
+    if (li) jobs.push(fetchLichess(li, opts, say));
+    const results = await Promise.allSettled(jobs);
+    const games = [], errs = [];
+    results.forEach(r => r.status === 'fulfilled' ? games.push(...r.value) : errs.push(r.reason.message));
+    return { games, errs };
+  };
+  say('Fetching games…');
+  let { games, errs } = await run(o);
+  let widened = false;
+  if (!games.length && !errs.length && o.months) {       // nothing recent: fall back to their most recent games of any age
+    say('No recent games. Looking further back…');
+    ({ games, errs } = await run({ ...o, months: 0 }));
+    widened = games.length > 0;
+  }
+  btn.disabled = false;
+  if (!games.length) {
+    st.textContent = '';
+    $('#report').innerHTML = `<div class="notice bad">${errs.length ? errs.map(esc).join('<br>') : 'These accounts exist but have no standard games for the time controls you ticked, even looking back across all time. Try ticking more time controls, or check the usernames.'}</div>`;
+    return;
+  }
+  games.sort((a, b) => b.t - a.t);
+  const newest = games[0].t, ageDays = Math.floor((Date.now() - newest) / 864e5);
+  const staleNote = ageDays > 60
+    ? `Their most recent game in this data was ${ago(newest)} (${new Date(newest).toISOString().slice(0, 10)}).${widened ? ' Nothing was found in your chosen period, so this shows their latest games of any age.' : ''} Habits and openings may have changed since. Check whether they have another account.`
+    : '';
+  posCache.clear(); evalToken++;
+  S = { games, A: analyse(games), T: tendencies(games), color: 'white', path: { white: [], black: [] }, flip: null, staleNote, label: [cc, li].filter(Boolean).join(' / ') };
+  st.textContent = errs.length ? errs.join(' ') : `Done: ${games.length} games.`;
+  const meCc = cleanUser($('#m-cc').value), meLi = cleanUser($('#m-li').value);
+  store.set('me', { cc: meCc, li: meLi });
+  ME = { cc: meCc, li: meLi, trees: null, state: (meCc || meLi) ? 'loading' : 'none', n: 0 };
+  render();
+  $('#report').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (meCc || meLi) {                                    // load the user's own games in the background, then refresh the sheet
+    const mine = S;
+    loadMe(meCc, meLi, tcs).catch(() => { ME.state = 'empty'; }).then(() => { if (S === mine) renderSheet(); });
+  }
+};
+
+/* ---------- TOURNAMENT: roster pasted from Chess-Results ---------- */
+const TITLES = new Set(['GM', 'IM', 'FM', 'CM', 'WGM', 'WIM', 'WFM', 'WCM', 'NM', 'AGM', 'AIM', 'AFM', 'ACM']);
+const FED2ISO = { PAK: 'PK', IND: 'IN', USA: 'US', BAN: 'BD', SRI: 'LK', NEP: 'NP', IRI: 'IR', UAE: 'AE', KSA: 'SA', AFG: 'AF', TUR: 'TR', EGY: 'EG', GER: 'DE', FRA: 'FR', RUS: 'RU', ESP: 'ES', ITA: 'IT', CAN: 'CA', AUS: 'AU', CHN: 'CN', PHI: 'PH', INA: 'ID', MAS: 'MY', SGP: 'SG', BRA: 'BR', ARG: 'AR', UKR: 'UA', POL: 'PL', NED: 'NL', NOR: 'NO', SWE: 'SE', DEN: 'DK', FIN: 'FI', UZB: 'UZ', KAZ: 'KZ', QAT: 'QA', OMA: 'OM', KUW: 'KW', JOR: 'JO', IRQ: 'IQ', MAR: 'MA', ALG: 'DZ', RSA: 'ZA', NGR: 'NG', KEN: 'KE', JPN: 'JP', KOR: 'KR', VIE: 'VN', THA: 'TH', MGL: 'MN', ISR: 'IL', GRE: 'GR', ROU: 'RO', SRB: 'RS', CRO: 'HR', HUN: 'HU', CZE: 'CZ', SUI: 'CH', AUT: 'AT', BEL: 'BE', POR: 'PT', IRL: 'IE', MEX: 'MX', COL: 'CO', PER: 'PE', CHI: 'CL', CUB: 'CU' };
+const isResultText = c => /^(?:1-0|0-1|1\/2-1\/2|½-½|0-0|\+|-|1-0f|0-1f|bye|forfeit)$/i.test(c) || /^[01½]\s*[-:]\s*[01½]$/.test(c) || /^[+\-]\s*[-:]\s*[+\-]$/.test(c);
+const HEADER_CELL = /^(?:no\.?|bo\.?|name|white|black|rtg|fed|fideid|club\/city|result|pts\.?|title)$/i;
+const CLUB_WORDS = /club|academy|university|college|school|team|federation|society|association|institute/i;
+
+function normName(raw) {
+  let s = raw.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  if (s.includes(',')) { const [a, ...b] = s.split(','); s = (b.join(' ') + ' ' + a).trim(); }     // "Ahmed, Bilal" -> "Bilal Ahmed"
+  return s.split(' ').filter(t => t && !TITLES.has(t.toUpperCase().replace(/\./g, ''))).join(' ');
+}
+function parseRoster(text) {
+  const out = [];
+  const pairings = /\bwhite\b[\s\S]{0,80}\bblack\b/i.test(text.split(/\r?\n/).find(l => /\bwhite\b/i.test(l) && /\bblack\b/i.test(l)) || '');
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let cells = line.split('\t').map(s => s.trim()).filter(Boolean);
+    if (cells.length < 2) cells = line.trim().split(/\s{2,}/).map(s => s.trim()).filter(Boolean);
+    if (cells.some(c => HEADER_CELL.test(c)) && !cells.some(c => /,/.test(c))) continue;       // header row
+    const isRating = c => /^\d{3,4}$/.test(c) && +c >= 600 && +c <= 3000;
+    const isFed = c => /^[A-Z]{3}$/.test(c) && !TITLES.has(c);
+    const multi = pairings || cells.filter(isRating).length >= 2 || cells.filter(isFed).length >= 2;     // pairings rows hold two players
+    let cur = null, seenResult = false;
+    for (const c of cells) {
+      if (TITLES.has(c.toUpperCase())) continue;
+      if (isRating(c)) { if (cur && !cur.rating) cur.rating = +c; continue; }
+      if (isFed(c)) { if (cur && !cur.fed) cur.fed = c; continue; }
+      if (isResultText(c)) { seenResult = true; continue; }
+      if (!/[A-Za-zÀ-ÖØ-öø-ÿ]{2,}/.test(c)) continue;                       // ranks, points, dates
+      if (cur && !multi && !seenResult) { if (!cur.club && c.length >= 3) cur.club = c; continue; }
+      if (cur && multi && !pairings && !seenResult && !(cur.rating || cur.fed)) { if (!cur.club) cur.club = c; continue; }
+      if (cur && !multi && /^\w{1,3}$/.test(c)) continue;                  // category tags such as U12
+      const name = normName(c);
+      if (name.split(' ').length < 2 && !/^[A-Za-z]{4,}$/.test(name)) continue;
+      cur = { name, rating: null, fed: '', club: '', cc: '', li: '' }; out.push(cur); seenResult = false;
+    }
+  }
+  return mergePlayers([], out).slice(0, 400);
+}
+function mergePlayers(base, extra) {                                         // same name = same player; fill in missing details
+  const by = new Map(base.map(p => [fold(p.name), p]));
+  for (const p of extra) {
+    if (!p.name) continue;
+    const old = by.get(fold(p.name));
+    if (old) { old.rating = old.rating || p.rating; old.fed = old.fed || p.fed; old.club = old.club || p.club; }
+    else { by.set(fold(p.name), p); base.push(p); }
+  }
+  return base;
+}
+
+let ROSTER = store.get('roster', []), FINDFOR = null;
+const saveRoster = () => store.set('roster', ROSTER);
+function renderRoster() {
+  const el = $('#t-list');
+  if (!ROSTER.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="card"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <h3 style="margin:0;margin-right:auto">${ROSTER.length} players · ${ROSTER.filter(p => p.cc || p.li).length} linked to accounts</h3>
+      <input id="t-filter" type="text" placeholder="Filter by name or club" aria-label="Filter players" style="width:14rem;max-width:100%"></div>
+    <div id="t-rows">${ROSTER.map((p, i) => `<div class="rrow" data-i="${i}">
+      <div class="no">${i + 1}</div>
+      <div><div class="nm">${esc(p.name)}</div>
+        <div class="sub">${[p.rating ? 'Rating ' + p.rating : 'Unrated', p.fed, p.club].filter(Boolean).map(esc).join(' · ')}</div>
+        ${(p.cc || p.li) ? `<div class="chips">${p.cc ? `<span class="chip good">Chess.com: ${esc(p.cc)}</span>` : ''}${p.li ? `<span class="chip good">Lichess: ${esc(p.li)}</span>` : ''}</div>` : ''}</div>
+      <div class="btns">${(p.cc || p.li) ? `<button type="button" class="primary" data-scout="${i}">Scout</button>` : ''}
+        <button type="button" class="ghost" data-find="${i}">${(p.cc || p.li) ? 'Find again' : 'Find accounts'}</button></div></div>`).join('')}</div></div>`;
+  $$('#t-rows [data-find]').forEach(b => b.onclick = () => startFind(+b.dataset.find));
+  $$('#t-rows [data-scout]').forEach(b => b.onclick = () => {
+    const p = ROSTER[+b.dataset.scout]; $('#s-cc').value = p.cc || ''; $('#s-li').value = p.li || '';
+    showTab('scout'); $('#scout-form').requestSubmit();
+  });
+  $('#t-filter').oninput = e => {
+    const v = e.target.value.trim().toLowerCase();
+    $$('#t-rows .rrow').forEach(r => { const p = ROSTER[+r.dataset.i]; r.hidden = !!v && !(`${p.name} ${p.club} ${p.fed}`.toLowerCase().includes(v)); });
+  };
+}
+function startFind(i) {
+  const p = ROSTER[i]; FINDFOR = i;
+  $('#f-name').value = p.name; $('#f-cc').value = FED2ISO[p.fed] || '';
+  $('#f-rmin').value = p.rating ? Math.max(0, p.rating - 350) : ''; $('#f-rmax').value = p.rating ? p.rating + 450 : '';
+  $('#f-hint').value = ''; $('#f-place').value = '';
+  showTab('find'); $('#find-form').requestSubmit();
+}
+$('#f-name').addEventListener('input', () => { FINDFOR = null; });           // a hand-edited name no longer belongs to the roster row
+$('#t-read').onclick = () => {
+  const found = parseRoster($('#t-paste').value), st = $('#t-status');
+  if (!found.length) { st.textContent = 'No players found. Copy the whole table, including the name column.'; return; }
+  const before = ROSTER.length;
+  mergePlayers(ROSTER, found);
+  const added = ROSTER.length - before;
+  saveRoster(); renderRoster();
+  st.textContent = `Read ${found.length} players, ${added} new.`;
+};
+$('#t-clear').onclick = () => { ROSTER = []; saveRoster(); $('#t-paste').value = ''; $('#t-status').textContent = 'List cleared.'; renderRoster(); };
+
+/* ---------- init ---------- */
+(function init() {
+  const f = store.get('find', null);
+  if (f) { $('#f-name').value = f.name || ''; $('#f-cc').value = f.cc || ''; $('#f-rmin').value = f.rmin ?? ''; $('#f-rmax').value = f.rmax ?? ''; $('#f-hint').value = f.hint || ''; $('#f-place').value = f.place || ''; $('#f-deep').checked = f.deep !== false; }
+  const me = store.get('me', null);
+  if (me) { $('#m-cc').value = me.cc || ''; $('#m-li').value = me.li || ''; }
+  loadSaved(); renderRoster();
+})();
+</script>
+</body>
+</html>

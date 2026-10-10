@@ -1,0 +1,12 @@
+{
+  "name": "Chess Scout",
+  "short_name": "Chess Scout",
+  "description": "Find an opponent's Chess.com and Lichess accounts and prepare for the round.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f3ec",
+  "theme_color": "#2d6a3e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
