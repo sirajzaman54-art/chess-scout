@@ -184,6 +184,7 @@ footer{color:var(--muted);font-size:.82rem;margin-top:24px}
 .plog{display:grid;gap:6px;max-height:380px;overflow:auto;margin-top:8px}
 .pl{display:grid;grid-template-columns:3.6rem minmax(0,1fr);gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg);font-size:.9rem}
 .pl.me{background:var(--accent-soft)}
+.pl.brk{background:var(--warn-bg);color:var(--warn-ink);font-weight:600}
 .pl .mvn{font-family:ui-monospace,Consolas,monospace;font-weight:700}
 .vd{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;margin-right:6px;color:#fff;white-space:nowrap}
 .vd.best{background:var(--win)} .vd.good{background:#4f9d5d} .vd.ok{background:#7d8478} .vd.inacc{background:#c48a1f} .vd.bad{background:var(--loss)} .vd.none{background:var(--muted)}
@@ -335,7 +336,7 @@ footer{color:var(--muted);font-size:.82rem;margin-top:24px}
     <div id="report"></div>
   </section>
 
-  <footer><b>Version 6</b> (summary, practice drills, tournament list, prep sheet, club scan, board, engine help). If you do not see the board after you build a report, press Ctrl+Shift+R to reload. <br>Uses public game data from the Chess.com and Lichess APIs, and Lichess's cloud engine analysis. For pre-game preparation only. Outside help during an over-the-board game is not allowed under FIDE rules.</footer>
+  <footer><b>Version 7</b> (summary, practice with engine, tournament list, prep sheet, club scan, board). If you do not see the board after you build a report, press Ctrl+Shift+R to reload. <br>Uses public game data from the Chess.com and Lichess APIs, and Lichess's cloud engine analysis. For pre-game preparation only. Outside help during an over-the-board game is not allowed under FIDE rules.</footer>
 </div>
 
 <div class="selbar" id="selbar" hidden>
@@ -1005,20 +1006,73 @@ async function cloudEval(fen) {
   const data = r.ok ? await r.json() : null;
   evalCache.set(fen, data); return data;
 }
+/* Local Stockfish (WebAssembly), loaded on first use. Used when the cloud has no data and to play for the opponent. */
+const SF_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/';
+let sfWorker = null, sfQueue = Promise.resolve();
+function sfInit() {
+  if (sfWorker) return sfWorker;
+  sfWorker = (async () => {
+    const src = (await (await fetch(SF_BASE + 'stockfish.wasm.js')).text())
+      .replace('locateFile:function(e){return e}', `locateFile:function(e){return ${JSON.stringify(SF_BASE)}+e}`);   // a blob worker cannot find the .wasm next to itself
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
+    await new Promise((res, rej) => {
+      const to = setTimeout(() => rej(new Error('engine start timeout')), 20000);
+      w.onmessage = e => { const l = String(e.data); if (l === 'uciok') w.postMessage('isready'); else if (l === 'readyok') { clearTimeout(to); res(); } };
+      w.onerror = () => { clearTimeout(to); rej(new Error('engine failed to start')); };
+      w.postMessage('uci');
+    });
+    w.onmessage = null;
+    return w;
+  })();
+  sfWorker.catch(() => { sfWorker = null; });
+  return sfWorker;
+}
+function sfGo(fen, { movetime = 700, skill = 20, multipv = 1 } = {}) {      // one search at a time; scores returned from White's point of view
+  const run = async () => {
+    const w = await sfInit();
+    return new Promise(resolve => {
+      const blackToMove = fen.split(' ')[1] === 'b', pvs = [];
+      const on = e => {
+        const l = String(e.data);
+        if (l.startsWith('info') && l.includes(' pv ') && /score (cp|mate)/.test(l)) {
+          const i = +(l.match(/multipv (\d+)/)?.[1] || 1) - 1, sc = l.match(/score (cp|mate) (-?\d+)/);
+          pvs[i] = { moves: l.split(' pv ')[1].trim(), [sc[1]]: blackToMove ? -sc[2] : +sc[2], depth: +(l.match(/depth (\d+)/)?.[1] || 0) };
+        } else if (l.startsWith('bestmove')) { w.removeEventListener('message', on); resolve({ best: l.split(' ')[1], pvs: pvs.filter(Boolean) }); }
+      };
+      w.addEventListener('message', on);
+      w.postMessage('setoption name Skill Level value ' + skill);
+      w.postMessage('setoption name MultiPV value ' + multipv);
+      w.postMessage('position fen ' + fen);
+      w.postMessage('go movetime ' + movetime);
+    });
+  };
+  return (sfQueue = sfQueue.then(run, run));
+}
+const sfEvalCache = new Map();
+async function getEval(fen, { multipv = 3, movetime = 900 } = {}) {          // cloud first (instant, deep), local engine when the cloud has nothing
+  let d; try { d = await cloudEval(fen); } catch {}
+  if (d && !d.paused && d.pvs?.length) return { pvs: d.pvs, depth: d.depth, source: 'cloud', knodes: d.knodes };
+  const key = fen + '|' + multipv;
+  if (sfEvalCache.has(key)) return sfEvalCache.get(key);
+  try {
+    const r = await sfGo(fen, { movetime, skill: 20, multipv });
+    const res = r.pvs.length ? { pvs: r.pvs, depth: r.pvs[0].depth, source: 'engine' } : null;
+    if (res) sfEvalCache.set(key, res);
+    return res;
+  } catch { return null; }
+}
 const winPct = cp => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
 function evalText(pv) { return pv.mate != null ? (pv.mate > 0 ? '+M' : '-M') + Math.abs(pv.mate) : (pv.cp >= 0 ? '+' : '') + (pv.cp / 100).toFixed(2); }
 function renderEngine(pos, plyCount, theirTurn) {
   const el = $('#engine'); if (!el) return;
   if (!hasChess || !pos.ok) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = '<span class="status">Asking Lichess cloud engine…</span>';
+  el.innerHTML = '<span class="status">Asking the engine…</span>';
   const token = ++evalToken; clearTimeout(evalTimer);
   evalTimer = setTimeout(async () => {
-    let data; try { data = await cloudEval(pos.fen); } catch { data = undefined; }
+    const data = await getEval(pos.fen, { multipv: 3, movetime: 1200 });
     if (token !== evalToken || !$('#engine')) return;
-    if (data === undefined) { el.innerHTML = '<span class="status">Engine analysis unavailable right now.</span>'; return; }
-    if (data?.paused) { el.innerHTML = '<span class="status">Engine lookups paused for a minute (rate limit). Keep browsing the moves.</span>'; return; }
-    if (!data) { el.innerHTML = '<span class="status">No cloud analysis for this exact position (it is rare). Open it in Lichess for a live engine.</span>'; return; }
+    if (!data) { el.innerHTML = '<span class="status">Engine analysis unavailable right now. Open the position in Lichess for a live engine.</span>'; return; }
     const top = data.pvs[0], whiteView = pos.fen.split(' ')[1] === 'w';
     const wp = top.mate != null ? (top.mate > 0 ? 100 : 0) : winPct(top.cp);
     const lines = data.pvs.map(pv => {
@@ -1028,7 +1082,7 @@ function renderEngine(pos, plyCount, theirTurn) {
     }).join('');
     el.innerHTML = `<b>${theirTurn ? 'Engine best moves here (they may deviate)' : 'Suggested replies for you'}</b>
       <div class="evalbar" title="White's advantage"><i style="width:${wp.toFixed(0)}%"></i><b>${evalText(top)}</b></div>${lines}
-      <div class="legend" style="margin-top:6px">Evaluation is from White's side. Depth ${data.depth}, ${Math.round(data.knodes / 1000)}M nodes (Lichess cloud).</div>`;
+      <div class="legend" style="margin-top:6px">Evaluation is from White's side. ${data.source === 'cloud' ? `Depth ${data.depth}, ${Math.round(data.knodes / 1000)}M nodes (Lichess cloud).` : `Depth ${data.depth} (Stockfish running in your browser, since the cloud has no data for this position).`}</div>`;
   }, 350);
 }
 
@@ -1234,9 +1288,8 @@ async function analyseTarget(t, c, my) {
     else { let k = 0, n = mt; while (k < t.path.length && n.kids.get(t.path[k])) { n = n.kids.get(t.path[k]); k++; } r.depth = k; }
   }
   if (pos?.ok) {
-    let d; try { d = await cloudEval(pos.fen); } catch { d = undefined; }
-    if (d?.paused) r.paused = true;
-    else if (d?.pvs) {
+    const d = await getEval(pos.fen, { multipv: 3, movetime: 800 });
+    if (d?.pvs) {
       r.engine = d.pvs.map(pv => {
         const c2 = new Chess(pos.fen), sans = []; let first = null;
         for (const u of pv.moves.split(' ').slice(0, 5)) { const m = c2.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }); if (!m) break; if (!first) first = m; sans.push(m.san); }
@@ -1273,8 +1326,7 @@ function sheetCard(t, r, c, my, rootN) {
     const e = r.engine;
     bits.push(`<p>Engine suggests <b>${esc(e[0].first.san)}</b>, ${esc(evalForMe(e[0].pv, my))}${e[1] ? `. Also: ${e.slice(1).map(x => `<b>${esc(x.first.san)}</b>`).join(', ')}` : ''}.</p>`);
     if (r.mine[0] && !e.map(x => cleanSan(x.first.san)).includes(r.mine[0].m)) bits.push(`<p style="color:var(--warn-ink)">Your usual ${esc(r.mine[0].m)} is not in the engine's top ${e.length}. Worth checking.</p>`);
-  } else if (r.myTurn && r.paused) bits.push('<p class="status">Engine lookups paused (rate limit).</p>');
-  else if (r.myTurn && hasChess) bits.push('<p class="status">No cloud analysis for this position (rare line).</p>');
+  } else if (r.myTurn && hasChess) bits.push('<p class="status">Engine analysis unavailable for this position.</p>');
   return `<div class="sb">${board}</div><div>
     <span class="st ${r.status}">${label}</span>
     <span class="line">${esc(fmtLine(t.path))}</span>
@@ -1383,7 +1435,18 @@ let PR = null;
 function practiceReset() {
   PR = { c: S.color, my: S.color === 'white' ? 'black' : 'white', ch: null, path: [], log: [], over: false, end: null, started: false,
     selected: null, targets: [], hint: null, busy: false, mode: PR?.mode || 'sample', startIdx: PR?.startIdx ?? '', last: null, flip: null, custom: null,
+    strength: PR?.strength || 'auto', engineMode: false, msg: '',
     tally: { best: 0, good: 0, ok: 0, inacc: 0, bad: 0, none: 0 } };
+}
+const STRENGTHS = { easy: ['Easy', 2], club: ['Club player', 6], strong: ['Strong', 12], full: ['Full strength', 20] };
+function skillFor(strength) {                                     // Stockfish "Skill Level" 0-20; "auto" follows their rating
+  if (STRENGTHS[strength]) return STRENGTHS[strength][1];
+  const r = S.T?.ratings?.[0]?.r || 1500;
+  return r <= 1000 ? 0 : r <= 1300 ? 3 : r <= 1600 ? 6 : r <= 1900 ? 10 : r <= 2200 ? 14 : r <= 2500 ? 18 : 20;
+}
+function strengthText(strength) {
+  if (STRENGTHS[strength]) return STRENGTHS[strength][0].toLowerCase();
+  const r = S.T?.ratings?.[0]?.r; return r ? `matched to their rating (about ${r})` : 'a club-level setting';
 }
 const VERDICT = { best: 'Best', good: 'Good', ok: 'OK', inacc: 'Inaccuracy', bad: 'Mistake', none: 'No data' };
 const plyLabel = i => i % 2 === 0 ? `${i / 2 + 1}.` : `${(i - 1) / 2 + 1}...`;
@@ -1409,14 +1472,19 @@ function renderPractice(reset) {
   const arrows = PR.hint ? [{ from: PR.hint.from, to: PR.hint.to, w: 16, color: '#2f9e44', op: .85 }] : [];
   const myTurn = PR.started && !PR.over && !isTheirTurn(c, PR.path.length);
   const status = !PR.started ? `Pick a start and press Start. You play ${myName}.`
-    : PR.over ? 'Drill finished.' : PR.busy ? 'Thinking…' : myTurn ? `Your move (${myName}).` : 'Their move…';
+    : PR.over ? 'Drill finished.' : PR.busy ? (PR.msg || 'Thinking…') : myTurn ? `Your move (${myName}).${PR.engineMode ? ' The engine is playing for them.' : ''}` : 'Their move…';
   const t = PR.tally, nMine = PR.log.filter(l => l.kind === 'me').length;
+  const autoRating = S.T?.ratings?.[0]?.r;
   el.innerHTML = `<h3>Practice: you are ${myName}, they play their usual ${c === 'white' ? 'White' : 'Black'}</h3>
-    <p class="lead" style="margin:0 0 4px">They answer with moves from their real games. After each of your moves the engine gives a verdict. The drill ends when you leave their book, which is exactly where you want to know you are comfortable.</p>
+    <p class="lead" style="margin:0 0 4px">They answer with moves from their real games. After each of your moves the engine gives a verdict. When you or they leave their book, the engine plays for them so you can keep going into the middlegame.</p>
     <div class="prbar noprint">
       <div><label for="pr-start">Start from</label><select id="pr-start">${opts}</select></div>
-      <div><label for="pr-mode">They play</label><select id="pr-mode"><option value="sample" ${PR.mode === 'sample' ? 'selected' : ''}>Like in their games (varies)</option><option value="main" ${PR.mode === 'main' ? 'selected' : ''}>Their usual move every time</option></select></div>
+      <div><label for="pr-mode">In their book, they play</label><select id="pr-mode"><option value="sample" ${PR.mode === 'sample' ? 'selected' : ''}>Like in their games (varies)</option><option value="main" ${PR.mode === 'main' ? 'selected' : ''}>Their usual move every time</option></select></div>
+      <div><label for="pr-strength">After their book, engine strength</label><select id="pr-strength">
+        <option value="auto" ${PR.strength === 'auto' ? 'selected' : ''}>Match their rating${autoRating ? ` (about ${autoRating})` : ''}</option>
+        ${Object.entries(STRENGTHS).map(([k, [n]]) => `<option value="${k}" ${PR.strength === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       <button class="primary" id="pr-go" type="button">${PR.started ? 'Restart' : 'Start drill'}</button>
+      ${PR.started && !PR.over ? '<button class="ghost" id="pr-stop" type="button">Stop</button>' : ''}
     </div>
     <div class="prgrid">
       <div>
@@ -1428,12 +1496,16 @@ function renderPractice(reset) {
         ${PR.end ? `<div class="endbox"><b>${esc(PR.end.title)}</b>${esc(PR.end.text)}
           ${nMine ? `<div style="margin-top:6px">Your ${nMine} move${nMine === 1 ? '' : 's'}: ${['best', 'good', 'ok', 'inacc', 'bad'].filter(k => t[k]).map(k => `${t[k]} ${VERDICT[k].toLowerCase()}`).join(' · ') || 'no engine verdicts available'}.</div>` : ''}
           <div class="cta noprint" style="margin-top:8px"><a class="mini" style="text-decoration:none;padding:2px 9px" href="https://lichess.org/analysis/${PR.ch.fen().replace(/ /g, '_')}" target="_blank" rel="noopener">Analyse on Lichess ↗</a></div></div>` : ''}
-        <div class="plog" id="pr-log">${PR.log.length ? PR.log.map(l => `<div class="pl ${l.kind === 'me' ? 'me' : ''}"><span class="mvn">${plyLabel(l.ply)}</span><span><b>${esc(l.san)}</b> ${l.verdict ? `<span class="vd ${l.verdict}">${VERDICT[l.verdict]}</span>` : ''}<span class="legend" style="margin:0">${esc(l.note || '')}</span></span></div>`).join('') : '<p class="status">Moves appear here.</p>'}</div>
+        <div class="plog" id="pr-log">${PR.log.length ? PR.log.map(l => l.kind === 'note'
+          ? `<div class="pl brk"><span></span><span>${esc(l.text)}</span></div>`
+          : `<div class="pl ${l.kind === 'me' ? 'me' : ''}"><span class="mvn">${plyLabel(l.ply)}</span><span><b>${esc(l.san)}</b> ${l.verdict ? `<span class="vd ${l.verdict}">${VERDICT[l.verdict]}</span>` : ''}<span class="legend" style="margin:0">${esc(l.note || '')}</span></span></div>`).join('') : '<p class="status">Moves appear here.</p>'}</div>
       </div>
     </div>`;
   $('#pr-go').onclick = () => practiceStart();
   $('#pr-start').onchange = e => { PR.startIdx = e.target.value; };
   $('#pr-mode').onchange = e => { PR.mode = e.target.value; };
+  $('#pr-strength').onchange = e => { PR.strength = e.target.value; };
+  const stop = $('#pr-stop'); if (stop) stop.onclick = () => practiceEnd(PR, 'Drill stopped', `You played ${PR.log.filter(l => l.kind === 'me').length} move(s) in this drill.`);
   $('#pr-flip').onclick = () => { PR.flip = !flip; renderPractice(); };
   $('#pr-hint').onclick = practiceHint;
   $('#pr-board').onclick = e => {
@@ -1449,6 +1521,7 @@ function startPracticeAt(path) { showPanel('practice'); practiceStart(path); }
 async function practiceStart(customPath) {
   const startIdx = $('#pr-start')?.value ?? '', mode = $('#pr-mode')?.value ?? 'sample';
   practiceReset(); const self = PR; PR.mode = mode; PR.startIdx = customPath ? '' : startIdx;
+  PR.strength = $('#pr-strength')?.value ?? PR.strength;
   PR.started = true; PR.ch = new Chess();
   const path = customPath || (startIdx === '' ? [] : S.A.lines[PR.c][+startIdx].path);
   for (const m of path) {
@@ -1459,20 +1532,40 @@ async function practiceStart(customPath) {
   renderPractice();
   if (isTheirTurn(PR.c, PR.path.length)) await practiceTheirMove(self);
 }
+const gameOverText = self => self.ch.in_checkmate() ? (self.ch.turn() === (self.my === 'white' ? 'w' : 'b') ? 'Checkmate. They win this one.' : 'Checkmate. You win!') : 'The game is drawn.';
+function leaveBook(self, text) {                                    // from here on the engine plays their moves
+  self.engineMode = true;
+  self.log.push({ kind: 'note', text: `${text} The engine now plays for them, ${strengthText(self.strength)}.` });
+}
+async function practiceEngineMove(self) {
+  if (PR !== self || self.over) return;
+  self.busy = true; self.msg = 'The engine is thinking for them…'; renderPractice();
+  let r;
+  try { r = await sfGo(self.ch.fen(), { movetime: 600, skill: skillFor(self.strength), multipv: 1 }); }
+  catch { return practiceEnd(self, 'Engine unavailable', 'The local engine could not start (it loads from a CDN, so check your connection). Use "Analyse on Lichess" to keep going.'); }
+  if (PR !== self || self.over) return;
+  const u = r.best, mv = u && u !== '(none)' ? self.ch.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }) : null;
+  if (!mv) return practiceEnd(self, 'Game over', gameOverText(self));
+  self.path.push(cleanSan(mv.san)); self.last = mv; self.busy = false; self.msg = '';
+  self.log.push({ kind: 'them', san: mv.san, ply: self.path.length - 1, note: 'engine move' });
+  if (self.ch.game_over()) return practiceEnd(self, 'Game over', gameOverText(self));
+  renderPractice();
+}
 async function practiceTheirMove(self) {
   if (PR !== self || self.over) return;
+  if (self.engineMode) return practiceEngineMove(self);
   const node = nodeAt(S.A.trees[self.c], self.path);
-  if (!node || !node.kids.size) return practiceEnd(self, 'Out of their book', `They have no recorded games beyond this point${node ? ` (${node.n} game${node.n === 1 ? '' : 's'} reached it)` : ''}. From here it is your own judgement.`);
+  if (!node || !node.kids.size) { leaveBook(self, `They have no recorded games beyond this point${node ? ` (${node.n} game${node.n === 1 ? '' : 's'} reached it)` : ''}.`); return practiceEngineMove(self); }
   self.busy = true; renderPractice(); await sleep(450);
-  if (PR !== self) return;
+  if (PR !== self || self.over) return;
   const kids = sortedKids(node), total = kids.reduce((a, [, k]) => a + k.n, 0);
   let pick = kids[0];
   if (self.mode === 'sample') { let r = Math.random() * total; for (const k of kids) { r -= k[1].n; if (r <= 0) { pick = k; break; } } }
   const mv = self.ch.move(pick[0], { sloppy: true });
-  if (!mv) return practiceEnd(self, 'Out of their book', 'Could not replay their move.');
+  if (!mv) { leaveBook(self, 'Could not replay their recorded move.'); return practiceEngineMove(self); }
   self.path.push(cleanSan(mv.san)); self.last = mv; self.busy = false;
   self.log.push({ kind: 'them', san: mv.san, ply: self.path.length - 1, note: `their choice, seen in ${pick[1].n} of ${total} games` });
-  if (self.ch.game_over()) return practiceEnd(self, 'Game over', self.ch.in_checkmate() ? 'Checkmate.' : 'The game is drawn.');
+  if (self.ch.game_over()) return practiceEnd(self, 'Game over', gameOverText(self));
   renderPractice();
 }
 function practiceEnd(self, title, text) { if (PR !== self) return; self.over = true; self.busy = false; self.end = { title, text }; renderPractice(); }
@@ -1494,28 +1587,30 @@ async function practicePlay(t) {
   const mv = self.ch.move({ from: t.from, to: t.to, promotion: t.promotion }); if (!mv) return;
   self.selected = null; self.targets = []; self.hint = null; self.busy = true;
   const san = cleanSan(mv.san), ply = self.path.length; self.path.push(san); self.last = mv;
-  renderPractice();
-  const j = await judgeMove(self, fenBefore, self.ch.fen(), san);
-  if (PR !== self) return;
-  self.tally[j.v]++; self.log.push({ kind: 'me', san: mv.san, ply, verdict: j.v, note: j.note });
-  if (self.ch.game_over()) return practiceEnd(self, 'Game over', self.ch.in_checkmate() ? 'Checkmate.' : 'The game is drawn.');
-  const parent = nodeAt(S.A.trees[self.c], self.path.slice(0, -1)), node = nodeAt(S.A.trees[self.c], self.path);
-  if (!node) return practiceEnd(self, 'You are out of their book', `A novelty. In ${parent ? parent.n : 0} game${parent && parent.n === 1 ? '' : 's'} they have faced ${parent ? parent.kids.size : 0} different move${parent && parent.kids.size === 1 ? '' : 's'} here, never ${san}. They would be on their own from this point.`);
+  self.msg = 'Checking your move…'; renderPractice();
+  const j = self.ch.in_checkmate() ? { v: 'best', note: 'Checkmate!' } : await judgeMove(self, fenBefore, self.ch.fen(), san);
+  if (PR !== self || self.over) return;
+  self.msg = ''; self.tally[j.v]++; self.log.push({ kind: 'me', san: mv.san, ply, verdict: j.v, note: j.note });
+  if (self.ch.game_over()) return practiceEnd(self, 'Game over', gameOverText(self));
+  if (!self.engineMode) {
+    const parent = nodeAt(S.A.trees[self.c], self.path.slice(0, -1)), node = nodeAt(S.A.trees[self.c], self.path);
+    if (!node) leaveBook(self, `A novelty. In ${parent ? parent.n : 0} game${parent && parent.n === 1 ? '' : 's'} they have faced ${parent ? parent.kids.size : 0} different move${parent && parent.kids.size === 1 ? '' : 's'} here, never ${san}.`);
+  }
   self.busy = false; renderPractice();
   await practiceTheirMove(self);
 }
 async function judgeMove(self, fenBefore, fenAfter, san) {
   const my = self.my, cpOf = pv => pv.mate != null ? (pv.mate > 0 ? 10000 : -10000) : pv.cp, mine = pv => my === 'white' ? cpOf(pv) : -cpOf(pv);
-  let d0; try { d0 = await cloudEval(fenBefore); } catch {}
-  if (!d0 || d0.paused || !d0.pvs) return { v: 'none', note: d0?.paused ? 'Engine lookups paused (rate limit).' : 'No engine data for this position.' };
+  const d0 = await getEval(fenBefore, { multipv: 3, movetime: 900 });
+  if (!d0?.pvs) return { v: 'none', note: 'No engine data for this position.' };
   const c0 = new Chess(fenBefore);
   const ranked = d0.pvs.map(pv => { const u = pv.moves.split(' ')[0], m = c0.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }); if (m) c0.undo(); return { pv, san: m ? cleanSan(m.san) : '', raw: m ? m.san : '?' }; });
   const best = ranked[0], idx = ranked.findIndex(r => r.san === san);
   let loss;
   if (idx >= 0) loss = mine(best.pv) - mine(ranked[idx].pv);
   else {
-    let d1; try { d1 = await cloudEval(fenAfter); } catch {}
-    if (!d1 || d1.paused || !d1.pvs) return { v: 'none', note: `Not in the engine's top 3. It prefers ${best.raw}: ${evalForMe(best.pv, my)}.` };
+    const d1 = await getEval(fenAfter, { multipv: 1, movetime: 900 });
+    if (!d1?.pvs) return { v: 'none', note: `Not in the engine's top 3. It prefers ${best.raw}: ${evalForMe(best.pv, my)}.` };
     loss = mine(best.pv) - mine(d1.pvs[0]);
   }
   loss = Math.max(0, loss);
@@ -1525,7 +1620,8 @@ async function judgeMove(self, fenBefore, fenAfter, san) {
 }
 async function practiceHint() {
   const self = PR; if (!self?.started || self.over || self.busy) return;
-  let d; try { d = await cloudEval(self.ch.fen()); } catch {}
+  $('#pr-status').textContent = 'Asking the engine…';
+  const d = await getEval(self.ch.fen(), { multipv: 1, movetime: 900 });
   if (PR !== self) return;
   const u = d?.pvs?.[0]?.moves.split(' ')[0];
   if (!u) { $('#pr-status').textContent = 'No engine hint for this position.'; return; }
