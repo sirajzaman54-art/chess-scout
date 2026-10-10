@@ -424,6 +424,25 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
 }
 @media (prefers-reduced-motion: reduce){body::before{animation:none}}
 
+/* ---- intel, threat meter, fun facts ---- */
+.threat{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;margin:14px 0 2px;font-size:.875rem;color:var(--ink-2)}
+.threat b{color:var(--ink);font-weight:650}
+.meter{flex:1 1 140px;max-width:260px;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.meter i{display:block;height:100%;width:100%;transform-origin:left;transform:scaleX(var(--v,.5));background:linear-gradient(90deg,var(--accent),var(--gold) 62%,var(--loss))}
+.fact{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start}
+.fact .fi{color:var(--accent-text);margin-top:1px;display:grid}
+.sbox li b{color:var(--ink)}
+.fun{display:flex;gap:12px;align-items:flex-start;margin-top:18px;padding:14px 16px;border-radius:var(--r);background:var(--accent-soft);color:var(--ink)}
+.fun>.ic{color:var(--accent-text);margin-top:3px}
+.fun p{flex:1;margin:0;font-size:.9375rem}
+.fun .swap,#intel-fun.swap{animation:swapin .5s cubic-bezier(.16,1,.3,1) both}
+@keyframes swapin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: no-preference){
+  .meter i{animation:fill 1.1s cubic-bezier(.16,1,.3,1) both}
+  @keyframes fill{from{transform:scaleX(0)}}
+  .hero-copy>*:nth-child(5){animation-delay:.4s}
+}
+
 /* ---- print: only the prep sheet ---- */
 @media print{
   :root{--bg:#fff;--surface:#fff;--surface-2:#eee;--ink:#000;--ink-2:#222;--ink-3:#444;--line:#bbb;--line-strong:#999;--accent:#1f5a2f;--accent-text:#1f5a2f;--accent-soft:#e6f2e9;--warn-bg:#fdf2d0;--warn-ink:#5a4000;--bad-bg:#f9dcd6;--bad-ink:#7a1f12}
@@ -457,15 +476,15 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
   <section id="view-find" role="tabpanel" aria-labelledby="tab-find">
     <div class="hero">
     <div class="hero-copy">
-    <h1>Know their openings before the first move.</h1>
-    <p class="lead">Enter a name and anything else you know. Chess Scout finds their Chess.com and Lichess accounts, maps their openings, and lets you rehearse against their real moves.</p>
+    <h1>Know their openings before move one. No cap.</h1>
+    <p class="lead">Drop a name and whatever else you know. We find their Chess.com and Lichess, spill their opening habits, and let you run drills against their real moves. It's giving unfair advantage (it's legal, it's just homework).</p>
     <form id="find-form" class="card" autocomplete="off">
       <div class="name-row">
-        <div><label for="f-name">Opponent's full name</label><input id="f-name" type="text" placeholder="e.g. Saad Khan" required></div>
-        <button class="primary" id="f-go" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Find accounts</button>
+        <div><label for="f-name">Who are we scouting? <small>(full name)</small></label><input id="f-name" type="text" placeholder="e.g. Saad Khan" required></div>
+        <button class="primary" id="f-go" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Find them</button>
       </div>
       <details class="more" id="f-more">
-        <summary>Narrow the search<span class="sum" id="f-sum">optional</span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        <summary>Narrow it down<span class="sum" id="f-sum">optional</span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
         <div class="grid g2" style="margin-top:10px">
           <div><label for="f-cc">Country code <small>(two letters)</small></label><input id="f-cc" type="text" maxlength="2" placeholder="PK" autocapitalize="characters"></div>
           <div><label for="f-place">City or place <small>(matched to their profile)</small></label><input id="f-place" type="text" placeholder="Karachi"></div>
@@ -473,19 +492,20 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
           <div><label for="f-rmax">Rating to</label><input id="f-rmax" type="number" inputmode="numeric" min="0" max="3500" placeholder="2000"></div>
           <div style="grid-column:1/-1"><label for="f-hint">Username hint <small>(a nickname, number or word you think they use)</small></label><input id="f-hint" type="text" placeholder="999, king, pk"></div>
         </div>
-        <div class="checks" style="margin-top:12px"><label><input type="checkbox" id="f-deep" checked> Deep search: also try about 500 number and nickname variants (takes about a minute)</label></div>
+        <div class="checks" style="margin-top:12px"><label><input type="checkbox" id="f-deep" checked> Deep search: try ~500 number and nickname combos (takes about a minute, worth it)</label></div>
       </details>
       <div style="margin-top:14px"><div class="prog" id="f-prog" hidden><i></i></div><p class="status" id="f-status" role="status" aria-live="polite"></p></div>
     </form>
-    <p class="legend" style="margin:14px 0 0">Already have a username? <button class="linkbtn" id="skip-to-scout" type="button">Go straight to Scout</button></p>
+    <p class="legend" style="margin:14px 0 0">Got their username already? <button class="linkbtn" id="skip-to-scout" type="button">Skip to Scout</button></p>
+    <div class="fun" id="fun-card"><svg class="ic" aria-hidden="true"><use href="#i-bulb"/></svg><p id="fun-text"></p><button class="mini" id="fun-next" type="button">Another one</button></div>
     </div>
     <div class="stage" id="hero-stage" aria-hidden="true"><div class="cap"><span id="hero-cap"></span><span>Morphy, Paris 1858</span></div></div>
     </div>
 
     <details class="card narrow" id="club-card">
-      <summary>Search inside a club or team<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+      <summary>Hunt through a club or team<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
       <div class="fold">
-        <p class="lead" style="margin:0 0 14px">Use this when the username looks nothing like the name. Many players join their university's club on Chess.com or team on Lichess, and their profile name gives them away. It uses the name, country and rating above.</p>
+        <p class="lead" style="margin:0 0 14px">Username looks nothing like their name? Same. Lots of players join their uni's club on Chess.com or team on Lichess, and their profile name gives them away. We use the name, country and rating from above.</p>
         <div class="grid g2">
           <div><label for="c-text">Club or team name</label><input id="c-text" type="text" placeholder="Karachi, Iqra University"></div>
           <div><label for="c-link">Or paste a club or team link</label><input id="c-link" type="text" placeholder="chess.com/club/… or lichess.org/team/…"></div>
@@ -503,9 +523,9 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
       <div class="empty narrow">
         <h2 class="h-sm">How it works</h2>
         <ol class="steps">
-          <li>Enter the opponent's name. Add a country or rating range if you know them.</li>
-          <li>Pick the account that looks right on Chess.com, Lichess or both.</li>
-          <li>Scout builds the report: their openings, a prep sheet, and a practice drill against their real moves.</li>
+          <li>Drop their name. Add a country or rating range if you know it.</li>
+          <li>Pick the account that looks right on Chess.com, Lichess, or both.</li>
+          <li>Scout builds the report: their openings, intel, a prep sheet, and drills against their real moves. Easy.</li>
         </ol>
       </div>
     </div>
@@ -513,14 +533,14 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
 
   <!-- TOURNAMENT -->
   <section id="view-tour" role="tabpanel" aria-labelledby="tab-tour" hidden>
-    <h2>Tournament players</h2>
-    <p class="lead">Open the tournament on chess-results.com, select the starting rank list or the pairings, copy the table and paste it here. This page never contacts Chess-Results; it only reads what you paste.</p>
+    <h2>Tournament roster</h2>
+    <p class="lead">Open the tournament on chess-results.com, copy the starting list or a pairings table, and paste it here. We never talk to Chess-Results ourselves, we only read what you paste. No drama.</p>
     <div class="card narrow">
       <label for="t-paste">Pasted table</label>
       <textarea id="t-paste" rows="6" placeholder="Paste the players or pairings table here"></textarea>
       <div class="actions">
-        <button class="primary" id="t-read" type="button">Read players</button>
-        <button class="ghost" id="t-clear" type="button">Clear list</button>
+        <button class="primary" id="t-read" type="button">Load the squad</button>
+        <button class="ghost" id="t-clear" type="button">Wipe it</button>
         <span class="status" id="t-status" role="status" aria-live="polite"></span>
       </div>
     </div>
@@ -529,8 +549,8 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
 
   <!-- SCOUT -->
   <section id="view-scout" role="tabpanel" aria-labelledby="tab-scout" hidden>
-    <h2>Scout an opponent</h2>
-    <p class="lead">Enter one or both usernames. Games from both sites are combined into one report.</p>
+    <h2>Run the scout</h2>
+    <p class="lead">Drop one or both usernames. We mash both sites into one report.</p>
     <form id="scout-form" class="card narrow" autocomplete="off">
       <div class="grid g2">
         <div><label for="s-cc">Chess.com username <small>(or profile link)</small></label><input id="s-cc" type="text" placeholder="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
@@ -555,7 +575,7 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
           </div>
         </div>
         <div style="margin-top:14px">
-          <label for="m-cc">Your own accounts <small>(optional: the prep sheet checks each line against what you actually play)</small></label>
+          <label for="m-cc">Your accounts <small>(optional: so the prep sheet can check which lines you actually know)</small></label>
           <div class="grid g2">
             <input id="m-cc" type="text" placeholder="Your Chess.com username" aria-label="Your Chess.com username" autocapitalize="none" autocorrect="off" spellcheck="false">
             <input id="m-li" type="text" placeholder="Your Lichess username" aria-label="Your Lichess username" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -563,7 +583,7 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
         </div>
       </details>
       <div class="actions">
-        <button class="primary" id="s-go" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>Build report</button>
+        <button class="primary" id="s-go" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>Run it</button>
         <span class="status" id="s-status" role="status" aria-live="polite"></span>
       </div>
       <div class="prog" id="s-prog" hidden style="margin-top:12px"><i></i></div>
@@ -573,7 +593,7 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
   </section>
 
   <footer>
-    <span id="ver">Chess Scout 9</span>. Uses public game data from Chess.com and Lichess, and Lichess cloud analysis, with Stockfish running in your browser. For preparation before the game only: outside help during an over-the-board game is not allowed under FIDE rules.
+    <span id="ver">Chess Scout 10</span>. Uses public game data from Chess.com and Lichess, and Lichess cloud analysis, with Stockfish running in your browser. Prep before the game only. No phones at the board during over-the-board play, that's FIDE rules, not us.
     Piece set by Colin M. L. Burnett (GPLv2+). <a href="https://github.com/sirajzaman54-art/chess-scout" target="_blank" rel="noopener">Source</a>
   </footer>
 </div>
@@ -582,7 +602,7 @@ nav.tabs button[aria-selected="true"]{background:var(--surface-2);box-shadow:ins
   <span id="selbar-text"></span>
   <div class="btns">
     <button class="ghost" id="selbar-clear" type="button">Clear</button>
-    <button class="primary" id="selbar-go" type="button">Scout selected<svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg></button>
+    <button class="primary" id="selbar-go" type="button">Scout 'em<svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg></button>
   </div>
 </div>
 
@@ -616,43 +636,112 @@ let G = null, M = null, PLANE = null, DOT = null, RING = null;
 const col = hex => new THREE.Color(hex).convertSRGBToLinear();
 function build() {
   const T = THREE;
-  const lathe = pts => { const g = new T.LatheGeometry(pts.map(p => new T.Vector2(p[0], p[1])), 44); g.computeVertexNormals(); return g; };
+  // A turned profile: each segment is a smooth spline, segments meet at crisp creases (like real lathe work).
+  const prof = segs => {
+    const out = [];
+    for (const seg of segs) {
+      const pts = seg.map(p => new T.Vector2(p[0], p[1]));
+      const c = seg.length > 2 ? new T.SplineCurve(pts) : new T.LineCurve(pts[0], pts[1]);
+      c.getPoints(Math.max(3, Math.round(seg.length * 6))).forEach(p => {
+        const q = [Math.max(0, p.x), p.y], l = out[out.length - 1];
+        if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 1e-4) out.push(q);
+      });
+    }
+    return out;
+  };
+  const lathe = segs => { const g = new T.LatheGeometry(prof(segs).map(p => new T.Vector2(p[0], p[1])), 72); g.computeVertexNormals(); return g; };
   const arc = (cy, rx, ry, a0, a1, n) => { const o = []; for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; o.push([rx * Math.cos(a), cy + ry * Math.sin(a)]); } return o; };
-  const sphere = r => new T.SphereGeometry(r, 22, 16);
+  const sphere = r => new T.SphereGeometry(r, 28, 20);
   const box = (x, y, z) => new T.BoxGeometry(x, y, z);
-  const BASE = [[0, 0], [.36, 0], [.375, .03], [.36, .07], [.31, .11], [.285, .15]];
-  G = {};
-  G.p = [{ geo: lathe([...BASE, [.17, .2], [.135, .3], [.125, .4], [.21, .42], [.21, .465], [.13, .485], ...arc(.60, .145, .145, -0.9, Math.PI / 2, 10)]) }];
-  G.r = [{ geo: lathe([...BASE, [.25, .19], [.21, .3], [.2, .56], [.27, .6], [.29, .64], [.29, .72], [0, .72]]) }];
-  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; G.r.push({ geo: box(.13, .14, .1), x: Math.cos(a) * .225, y: .79, z: Math.sin(a) * .225, ry: -a }); }
-  G.b = [{ geo: lathe([...BASE, [.22, .19], [.15, .32], [.11, .5], [.17, .54], [.17, .585], [.115, .625], ...arc(.80, .155, .215, -0.735, Math.PI / 2, 14)]) }, { geo: sphere(.052), y: 1.045 }];
-  G.q = [{ geo: lathe([...BASE, [.245, .19], [.175, .34], [.125, .6], [.125, .72], [.235, .755], [.235, .81], [.15, .85], [.19, .93], [.265, 1.05], [.225, 1.07], [.1, 1.02], [0, 1.02]]) }, { geo: sphere(.07), y: 1.115 }];
-  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; G.q.push({ geo: sphere(.045), x: Math.cos(a) * .245, y: 1.075, z: Math.sin(a) * .245 }); }
-  G.k = [{ geo: lathe([...BASE, [.245, .19], [.175, .34], [.125, .62], [.125, .76], [.24, .79], [.24, .85], [.15, .89], [.2, .97], [.25, 1.07], [.2, 1.09], [.1, 1.03], [0, 1.03]]) }, { geo: box(.075, .27, .075), y: 1.22 }, { geo: box(.22, .075, .075), y: 1.26 }];
+  const cone = (r, h) => new T.ConeGeometry(r, h, 18);
 
-  // knight: extrude the real silhouette from the 2D piece art, on a round pedestal
-  G.n = [{ geo: lathe([...BASE, [.22, .19], [0, .19]]) }];
+  // weighted, moulded plinth shared by every piece
+  const BASE = [[[0, 0], [.37, 0]], [[.37, 0], [.392, .02], [.392, .05], [.375, .072]], [[.375, .072], [.33, .088]], [[.33, .088], [.33, .102]], [[.33, .102], [.302, .122], [.275, .15]]];
+  G = {};
+
+  // pawn: slender stem, moulded collar, round head
+  G.p = [{ geo: lathe([...BASE, [[.275, .15], [.2, .2], [.15, .28], [.135, .38]], [[.135, .38], [.2, .396]], [[.2, .396], [.228, .412], [.228, .438], [.2, .454]], [[.2, .454], [.118, .47]], [[.118, .47], [.115, .5]], [[.115, .5], [.115, .52]], arc(.635, .16, .16, -0.80, Math.PI / 2, 12)]) }];
+
+  // rook: flared tower, rim, battlements
+  G.r = [{ geo: lathe([...BASE, [[.275, .15], [.22, .22], [.185, .34], [.175, .5]], [[.175, .5], [.21, .515], [.255, .535]], [[.255, .535], [.285, .56], [.285, .585]], [[.285, .585], [.3, .6], [.3, .74]], [[.3, .74], [.26, .74]], [[.26, .74], [.26, .69]], [[.26, .69], [0, .69]]]) }];
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + Math.PI / 6; G.r.push({ geo: box(.075, .13, .14), x: Math.cos(a) * .28, y: .805, z: Math.sin(a) * .28, ry: -a }); }
+
+  // bishop: tapered body, collar, mitre with the diagonal slit
+  G.b = [{ geo: lathe([...BASE, [[.275, .15], [.22, .22], [.16, .36], [.115, .55]], [[.115, .55], [.19, .57]], [[.19, .57], [.215, .585], [.215, .615], [.19, .63]], [[.19, .63], [.115, .65]], [[.115, .65], [.115, .674]], arc(.86, .165, .26, -0.80, Math.PI / 2, 14)]) },
+    { geo: sphere(.058), y: 1.155 }, { geo: box(.36, .024, .08), m: 'slit', y: .93, z: .118, rz: .62, face: true }];
+
+  // queen: slender body, double collar, flared crown with points
+  G.q = [{ geo: lathe([...BASE, [[.275, .15], [.22, .22], [.16, .38], [.12, .62], [.115, .78]], [[.115, .78], [.24, .8]], [[.24, .8], [.27, .815], [.27, .845], [.24, .86]], [[.24, .86], [.14, .88]], [[.14, .88], [.15, .93], [.2, 1.0], [.26, 1.09], [.29, 1.15]], [[.29, 1.15], [.27, 1.17], [.24, 1.16]], [[.24, 1.16], [.17, 1.12], [.08, 1.085], [0, 1.08]]]) },
+    { geo: sphere(.075), y: 1.16 }];
+  for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5; G.q.push({ geo: cone(.036, .1), x: Math.cos(a) * .272, y: 1.2, z: Math.sin(a) * .272 }, { geo: sphere(.036), x: Math.cos(a) * .272, y: 1.262, z: Math.sin(a) * .272 }); }
+
+  // king: taller, domed crown with a cross
+  G.k = [{ geo: lathe([...BASE, [[.275, .15], [.22, .22], [.16, .38], [.12, .64], [.115, .8]], [[.115, .8], [.25, .82]], [[.25, .82], [.28, .835], [.28, .865], [.25, .88]], [[.25, .88], [.14, .9]], [[.14, .9], [.17, .97], [.22, 1.05], [.26, 1.12], [.27, 1.16]], [[.27, 1.16], [.255, 1.185]], [[.255, 1.185], [.2, 1.2], [.12, 1.22], [0, 1.225]]]) },
+    { geo: sphere(.052), y: 1.25 }, { geo: box(.085, .27, .085), y: 1.4 }, { geo: box(.23, .085, .085), y: 1.42 }];
+
+  // knight: rounded 3D head built from the real silhouette, on a round pedestal
+  G.n = [{ geo: lathe([...BASE, [[.275, .15], [.262, .19], [.24, .22]], [[.24, .22], [0, .22]]]) }];
   const sprite = document.querySelector('svg.sprite'), sym = document.getElementById('p-wN');
   if (sprite && sym) {
-    const S = .029;
+    const S = .0265;
     for (const p of [...sym.querySelectorAll('path')].filter(p => p.getAttribute('fill') === '#fff')) {
       const tmp = document.createElementNS(NS, 'path'); tmp.setAttribute('d', p.getAttribute('d')); sprite.appendChild(tmp);
-      const L = tmp.getTotalLength(), n = Math.max(48, Math.round(L * 2)), pts = [];
+      const L = tmp.getTotalLength(), n = Math.max(64, Math.round(L * 2.5)), pts = [];
       for (let i = 0; i < n; i++) { const q = tmp.getPointAtLength(L * i / n); pts.push(new T.Vector2((q.x - 23.5) * S, (39 - q.y) * S)); }
       sprite.removeChild(tmp);
-      const g = new T.ExtrudeGeometry(new T.Shape(pts), { depth: .2, bevelEnabled: true, bevelThickness: .05, bevelSize: .035, bevelSegments: 3, curveSegments: 1 });
-      g.translate(0, 0, -.1); g.computeVertexNormals();
-      G.n.push({ geo: g, y: .16, knight: true });
+      const g = new T.ExtrudeGeometry(new T.Shape(pts), { depth: .13, bevelEnabled: true, bevelThickness: .11, bevelSize: .06, bevelSegments: 7, curveSegments: 1 });
+      g.translate(0, 0, -.065); g.computeVertexNormals();
+      G.n.push({ geo: g, y: .2, knight: true });
+    }
+    // eyes and nostrils, one on each side of the head
+    for (const sgn of [-1, 1]) {
+      G.n.push({ geo: sphere(.032), m: 'eye', x: (14.5 - 23.5) * S, y: .2 + (39 - 15.6) * S, z: sgn * .185 });
+      G.n.push({ geo: sphere(.02), m: 'eye', x: (9 - 23.5) * S, y: .2 + (39 - 25.5) * S, z: sgn * .13 });
     }
   }
-  M = {
-    w: new T.MeshStandardMaterial({ color: col(0xf3eddc), roughness: .36, metalness: .04 }),
-    b: new T.MeshStandardMaterial({ color: col(0x2b2c31), roughness: .3, metalness: .2 }),
-    light: new T.MeshStandardMaterial({ color: col(0xe8e0c6), roughness: .55, metalness: 0 }),
-    dark: new T.MeshStandardMaterial({ color: col(0x3a6a50), roughness: .5, metalness: 0 }),
-    frame: new T.MeshStandardMaterial({ color: col(0x2a1f17), roughness: .5, metalness: .05 }),
+
+  // ---- materials: lacquered ivory and ebony, polished walnut, mottled stone squares ----
+  const noise = (g, w, h, amp) => { const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * amp; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0); };
+  const tex = c => { const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t; };
+  const stone = (base, vein) => {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 60; i++) { const x = Math.random() * 256, y = Math.random() * 256, r = 24 + Math.random() * 70, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${vein},${.05 + Math.random() * .09})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    g.lineWidth = 1; for (let i = 0; i < 18; i++) { g.strokeStyle = `rgba(${vein},${.05 + Math.random() * .1})`; g.beginPath(); let x = Math.random() * 256, y = Math.random() * 256; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (Math.random() - .3) * 60; y += (Math.random() - .5) * 40; g.lineTo(x, y); } g.stroke(); }
+    noise(g, 256, 256, 9); return tex(c);
   };
-  PLANE = new T.PlaneGeometry(1, 1); DOT = new T.CircleGeometry(.16, 28); RING = new T.RingGeometry(.4, .47, 40);
+  const wood = () => {
+    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+    g.fillStyle = '#4a3322'; g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 300; i++) { const y = Math.random() * 512, dark = Math.random() < .55; g.strokeStyle = dark ? `rgba(24,14,7,${.05 + Math.random() * .13})` : `rgba(120,82,50,${.05 + Math.random() * .12})`; g.lineWidth = .5 + Math.random() * 2.6; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 512; x += 32) g.lineTo(x, y + Math.sin(x * .017 + i) * 3.5 + Math.random() * 1.2); g.stroke(); }
+    noise(g, 512, 512, 8); const t = tex(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t;
+  };
+  const phys = (color, o) => new T.MeshPhysicalMaterial(Object.assign({ color: col(color) }, o));
+  const tile = (t, o = {}) => new T.MeshStandardMaterial(Object.assign({ map: t, roughness: .52, metalness: 0, envMapIntensity: .3 }, o));
+  M = {
+    w: phys(0xf1e9d2, { roughness: .42, clearcoat: .55, clearcoatRoughness: .3, envMapIntensity: .8 }),
+    b: phys(0x23222a, { roughness: .3, metalness: .1, clearcoat: .9, clearcoatRoughness: .16, envMapIntensity: .95 }),
+    slit: new T.MeshStandardMaterial({ color: col(0x0c0a0a), roughness: .7 }),
+    eye: new T.MeshStandardMaterial({ color: col(0x0a0a0c), roughness: .25 }),
+    lights: [0, 1, 2, 3].map(() => tile(stone('#e9e1c9', '120,100,70'))),
+    darks: [0, 1, 2, 3].map(() => tile(stone('#3d6d53', '10,34,22'))),
+    frame: new T.MeshPhysicalMaterial({ map: wood(), roughness: .42, clearcoat: .45, clearcoatRoughness: .35, envMapIntensity: .5 }),
+  };
+  // soft contact shadow baked into a texture, placed under every piece
+  const bc = document.createElement('canvas'); bc.width = bc.height = 128; const bg = bc.getContext('2d'), br = bg.createRadialGradient(64, 64, 4, 64, 64, 62);
+  br.addColorStop(0, 'rgba(0,0,0,.65)'); br.addColorStop(.55, 'rgba(0,0,0,.28)'); br.addColorStop(1, 'rgba(0,0,0,0)'); bg.fillStyle = br; bg.fillRect(0, 0, 128, 128);
+  M.blob = new T.MeshBasicMaterial({ map: new T.CanvasTexture(bc), transparent: true, depthWrite: false, opacity: .8 });
+  PLANE = new T.PlaneGeometry(1, 1); DOT = new T.CircleGeometry(.16, 28); RING = new T.RingGeometry(.4, .47, 40); G.blob = new T.PlaneGeometry(.98, .98);
+}
+
+// a soft studio environment so lacquer and wood pick up believable reflections
+function studioEnv(renderer) {
+  const T = THREE, c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, 256); sky.addColorStop(0, '#dfe9e4'); sky.addColorStop(.5, '#8fa79b'); sky.addColorStop(.52, '#2a3a32'); sky.addColorStop(1, '#0d1612');
+  g.fillStyle = sky; g.fillRect(0, 0, 512, 256);
+  for (const [x, y, w, h, a] of [[90, 40, 120, 56, .95], [330, 30, 150, 48, .8], [440, 90, 60, 70, .55]]) { g.fillStyle = `rgba(255,248,232,${a})`; g.fillRect(x, y, w, h); }
+  const tx = new T.CanvasTexture(c); tx.mapping = T.EquirectangularReflectionMapping; tx.encoding = T.sRGBEncoding;
+  const pm = new T.PMREMGenerator(renderer), env = pm.fromEquirectangular(tx).texture; pm.dispose(); tx.dispose(); return env;
 }
 
 const TOP = 0.07, PS = 0.92;
@@ -680,9 +769,9 @@ class Board3D {
     r.outputEncoding = T.sRGBEncoding; r.toneMapping = T.ACESFilmicToneMapping; r.toneMappingExposure = .88;
     r.shadowMap.enabled = true; r.shadowMap.type = T.PCFSoftShadowMap; r.setClearColor(0x000000, 0);
     this.wrap.appendChild(r.domElement);
-    const scene = this.scene = new T.Scene(); this.cam = new T.PerspectiveCamera(28, 1, .5, 90);
+    const scene = this.scene = new T.Scene(); scene.environment = studioEnv(r); this.cam = new T.PerspectiveCamera(28, 1, .5, 90);
 
-    scene.add(new T.HemisphereLight(0xdcefe6, 0x12201a, .55));
+    scene.add(new T.HemisphereLight(0xdcefe6, 0x12201a, .32));
     const key = new T.DirectionalLight(0xfff0d6, 1.12); key.position.set(5, 11, 6); key.castShadow = true;
     key.shadow.mapSize.set(1536, 1536); Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 32 });
     key.shadow.bias = -.0004; key.shadow.normalBias = .02; key.shadow.radius = 3;
@@ -695,7 +784,7 @@ class Board3D {
     shadowPlane.rotation.x = -Math.PI / 2; shadowPlane.position.y = -.4; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
     this.tiles = new T.Group(); const tg = new T.BoxGeometry(1, .14, 1);
     for (let f = 0; f < 8; f++) for (let k = 0; k < 8; k++) {
-      const m = new T.Mesh(tg, (f + k) % 2 ? M.light : M.dark);
+      const m = new T.Mesh(tg, (f + k) % 2 ? M.lights[(f * 3 + k * 5) % 4] : M.darks[(f * 7 + k * 3) % 4]);
       m.position.set(f - 3.5, 0, 3.5 - k); m.receiveShadow = true; m.userData.sq = FILES[f] + (k + 1); this.tiles.add(m);
     }
     scene.add(this.tiles);
@@ -748,9 +837,12 @@ class Board3D {
   _mk(type, color, sq) {
     const g = new THREE.Group(), defs = G[type];
     for (const d of defs) {
-      const m = new THREE.Mesh(d.geo, M[color]); m.castShadow = true; m.receiveShadow = true;
-      m.position.set(d.x || 0, d.y || 0, d.z || 0); if (d.ry) m.rotation.y = d.ry; g.add(m);
+      const m = new THREE.Mesh(d.geo, d.m ? M[d.m] : M[color]); m.castShadow = !d.m; m.receiveShadow = true;
+      m.position.set(d.x || 0, d.y || 0, d.z || 0); if (d.ry) m.rotation.y = d.ry; if (d.rz) m.rotation.z = d.rz;
+      if (d.face && color === 'b') { m.position.z *= -1; m.rotation.y += Math.PI; }
+      g.add(m);
     }
+    const bl = new THREE.Mesh(G.blob, M.blob); bl.rotation.x = -Math.PI / 2; bl.position.y = .005; bl.renderOrder = 0; g.add(bl);
     if (type === 'n') g.rotation.y = color === 'w' ? 0 : Math.PI;      // profile toward the camera: white faces left, black faces right
     const [x, z] = sqXZ(sq); g.userData = { type, color, sq, px: x, pz: z, hy: 0, s: 1, lift: 0, liftT: 0 };
     this.scene.add(g); return g;
@@ -1186,9 +1278,9 @@ function renderCands(all, q) {
   };
   $('#f-results').innerHTML =
     `<div class="card"><label for="f-filter">Filter these results <small>(type part of a username, name or place, e.g. 999)</small></label><input id="f-filter" type="text" placeholder="Filter…"></div>` +
-    `<div class="notice info">A real-name match is strong evidence. A username-only match is just a lead. Check the rating, country and last-seen date before you trust it. Pick one account per site, or only one site.</div>` +
+    `<div class="notice info">Real-name match = strong. Username-only match = just a lead. Check the rating, country and last-seen before you trust it. Pick one account per site, or just one site.</div>` +
     `<div class="grid g2" style="align-items:start">${section('Chess.com', 'cc')}${section('Lichess', 'li')}</div>` +
-    `<div class="notice warn">Nothing right? Many players use a nickname that no name search can find. Ask a teammate or coach, check the tournament page for linked usernames, or add a username hint above.</div>`;
+    `<div class="notice warn">Not seeing them? They might be on a nickname we can't guess. Ask a teammate or coach, check the tournament page, or add a username hint above.</div>`;
   const bind = root => $$('button[data-pick]', root).forEach(b => b.onclick = () => {
     const k = b.dataset.site;
     sel[k] = sel[k] === b.dataset.user ? null : b.dataset.user;
@@ -1321,14 +1413,14 @@ $('#find-form').onsubmit = async e => {
   try {
     const G = makeGuesses(q.tokens, q.cc, q.hint, q.deep);
     // 1. Lichess: prefix search + bulk lookup of every guess (cheap: 300 per request)
-    st.textContent = 'Lichess: searching usernames…';
-    const auto = await liAutocomplete(G.bases, n => { st.textContent = `Lichess: prefix search ${n}…`; }).catch(err => { errs.push('Lichess: ' + err.message); return new Set(); });
+    st.textContent = 'Lichess: hunting usernames…';
+    const auto = await liAutocomplete(G.bases, n => { st.textContent = `Lichess: still hunting (${n})…`; }).catch(err => { errs.push('Lichess: ' + err.message); return new Set(); });
     const liIds = new Set([...G.core, ...G.numeric, ...auto].map(x => x.toLowerCase()));
     st.textContent = `Lichess: checking ${liIds.size} usernames…`;
     let L = await liUsers(liIds).catch(err => { errs.push('Lichess: ' + err.message); return []; });
     // 2. Chess.com: guesses + every username found on Lichess
     const ccList = [...new Set([...G.core, ...G.numeric, ...L.map(u => u.username)].map(x => x.toLowerCase()))];
-    const C = await ccFind(ccList, n => { st.textContent = `Chess.com: checked ${n} of ${ccList.length} usernames…`; fprog.classList.remove('ind'); fprog.firstElementChild.style.transform = `scaleX(${(n / ccList.length).toFixed(3)})`; }).catch(err => { errs.push('Chess.com: ' + err.message); return []; });
+    const C = await ccFind(ccList, n => { st.textContent = `Chess.com: checked ${n} of ${ccList.length} usernames, still cooking…`; fprog.classList.remove('ind'); fprog.firstElementChild.style.transform = `scaleX(${(n / ccList.length).toFixed(3)})`; }).catch(err => { errs.push('Chess.com: ' + err.message); return []; });
     // 3. Lichess again for usernames that exist on Chess.com
     const have = new Set(L.map(u => u.username.toLowerCase()));
     const extra = C.map(c => c.username.toLowerCase()).filter(u => !have.has(u) && !liIds.has(u));
@@ -1336,7 +1428,7 @@ $('#find-form').onsubmit = async e => {
     FIND.all = [...C, ...L].map(c => scoreCand(c, q));
     finalise(FIND.all);
     renderCands(FIND.all, q);
-    st.textContent = errs.length ? errs.join(' ') : 'Done.';
+    st.textContent = errs.length ? errs.join(' ') : 'Done. Pick your guy.';
   } catch (err) {
     st.textContent = 'Something went wrong: ' + err.message;
   } finally { btn.disabled = false; fprog.hidden = true; fprog.classList.remove('ind'); }
@@ -1513,13 +1605,13 @@ function tendencies(games) {
   T.series = top ? games.filter(g => g.site === top.site && g.tc === top.tc && g.myRating).slice(0, 80).reverse().map(g => g.myRating) : [];
   T.seriesLabel = top ? `${top.site === 'cc' ? 'Chess.com' : 'Lichess'} ${top.tc}` : '';
 
-  if (T.loss.n >= 5 && T.loss.time >= 30) T.insights.push(`Loses on time in <b>${T.loss.time}%</b> of their losses. Keep positions complex and the clock tense. They tend to run low.`);
-  if (T.loss.n >= 5 && T.loss.resign >= 70) T.insights.push(`Resigns in ${T.loss.resign}% of losses. They give up once clearly worse, so a safe edge often converts.`);
-  if (T.win.n >= 5 && T.win.mate >= 35) T.insights.push(`Wins by checkmate in ${T.win.mate}% of their wins. They play for attacks, so watch your king.`);
-  if (n >= 20 && T.short >= 30) T.insights.push(`${T.short}% of their games end before move 20. Expect sharp openings and traps, so know your opening well.`);
-  if (n >= 20 && T.long >= 30) T.insights.push(`${T.long}% of their games go past move 50. They grind, so endgames are not a safe place to relax.`);
+  if (T.loss.n >= 5 && T.loss.time >= 30) T.insights.push(`They flag in <b>${T.loss.time}%</b> of their losses. Keep it messy and let their clock do the work.`);
+  if (T.loss.n >= 5 && T.loss.resign >= 70) T.insights.push(`They resign in ${T.loss.resign}% of losses. Once they're clearly worse they fold, so a safe edge usually converts.`);
+  if (T.win.n >= 5 && T.win.mate >= 35) T.insights.push(`${T.win.mate}% of their wins end in checkmate. Attacker energy, so watch your king.`);
+  if (n >= 20 && T.short >= 30) T.insights.push(`${T.short}% of their games are over before move 20. Expect sharp openings and traps, so know your opening cold.`);
+  if (n >= 20 && T.long >= 30) T.insights.push(`${T.long}% of their games go past move 50. They grind, so don't coast in the endgame.`);
   if (T.nWhite >= 10 && T.nBlack >= 10 && Math.abs(T.scoreWhite - T.scoreBlack) >= 15)
-    T.insights.push(`They score ${T.scoreWhite}% with White but ${T.scoreBlack}% with Black, so they are ${T.scoreWhite > T.scoreBlack ? 'weaker with Black' : 'weaker with White'}.`);
+    T.insights.push(`They score ${T.scoreWhite}% with White but ${T.scoreBlack}% with Black, so they're ${T.scoreWhite > T.scoreBlack ? 'weaker with Black' : 'weaker with White'}.`);
   if (T.vsHigher.n >= 8) T.insights.push(`Against opponents rated 100+ higher they score ${T.vsHigher.sc}% (${T.vsHigher.n} games).`);
   return T;
 }
@@ -1664,7 +1756,7 @@ let S = { games: [], A: null, T: null, color: 'white', path: { white: [], black:
 const openLine = (c, path) => {
   const changed = S.color !== c;
   S.color = c; S.path[c] = path; syncColorBar(); renderPlan(); renderExplorer();
-  if (changed) { renderSheet(); renderSummary(); renderPractice(true); }
+  if (changed) { renderSheet(); renderSummary(); renderIntel(); renderPractice(true); }
   showPanel('explorer');
   $('#board-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
@@ -1688,7 +1780,7 @@ function render() {
 
   $('#report').innerHTML = `
     ${S.staleNote ? `<div class="notice warn">${esc(S.staleNote)}</div>` : ''}
-    ${g.length < 30 ? `<div class="notice warn">Only ${g.length} games found. Treat percentages as hints, not patterns. Widen the look-back period or add the other site if they use both.</div>` : ''}
+    ${g.length < 30 ? `<div class="notice warn">Only ${g.length} games found, so the percentages are lowkey vibes. Widen the look-back or add their other site.</div>` : ''}
     <div class="card">
       <div class="rhead">
         <h2>${esc(S.label)}</h2>
@@ -1696,7 +1788,7 @@ function render() {
           <input id="r-label" type="text" placeholder="Label, e.g. Round 3, board 2" aria-label="Label for this opponent">
           <button class="ghost" id="r-save" type="button">${ic('bookmark')}Save</button>
           <button class="ghost" id="r-link" type="button" title="Copy a link that opens this report">${ic('link')}Copy link</button>
-          <button class="ghost" id="r-copy" type="button">${ic('copy')}Copy brief</button>
+          <button class="ghost" id="r-copy" type="button">${ic('copy')}Copy intel</button>
         </div>
       </div>
       <p class="facts">
@@ -1711,6 +1803,7 @@ function render() {
     <div class="stick noprint">
       <div class="subtabs" id="subtabs" role="tablist" aria-label="Report sections">
         <button type="button" role="tab" data-panel="summary" aria-selected="true">Summary</button>
+        <button type="button" role="tab" data-panel="intel" aria-selected="false">Intel</button>
         <button type="button" role="tab" data-panel="practice" aria-selected="false">Practice</button>
         <button type="button" role="tab" data-panel="sheet" aria-selected="false">Prep sheet</button>
         <button type="button" role="tab" data-panel="explorer" aria-selected="false">Explorer</button>
@@ -1727,6 +1820,7 @@ function render() {
     </div>
 
     <div class="panel" data-panel="summary"><div class="card" id="summary-card"></div></div>
+    <div class="panel" data-panel="intel" hidden><div class="card" id="intel-card"></div></div>
     <div class="panel" data-panel="practice" hidden><div class="card" id="practice-card"></div></div>
     <div class="panel" data-panel="sheet" hidden><div class="card" id="sheet-card"></div></div>
     <div class="panel" data-panel="explorer" hidden>
@@ -1777,13 +1871,13 @@ function render() {
     </div>
     </div>`;
   $$('#subtabs button').forEach(b => b.onclick = () => showPanel(b.dataset.panel));
-  $$('#colorbar button').forEach(b => b.onclick = () => { S.color = b.dataset.color; syncColorBar(); renderPlan(); renderExplorer(); renderSheet(); renderSummary(); renderPractice(true); });
+  $$('#colorbar button').forEach(b => b.onclick = () => { S.color = b.dataset.color; syncColorBar(); renderPlan(); renderExplorer(); renderSheet(); renderSummary(); renderIntel(); renderPractice(true); });
   const flash = (btn, ok, idle) => { btn.innerHTML = ic(ok ? 'check' : 'x') + (ok ? 'Done' : 'Failed'); setTimeout(() => { btn.innerHTML = idle; }, 1600); };
   $('#r-copy').onclick = async e => { const b = e.currentTarget, idle = b.innerHTML; try { await navigator.clipboard.writeText(briefText()); flash(b, true, idle); } catch { flash(b, false, idle); } };
   $('#r-link').onclick = async e => { const b = e.currentTarget, idle = b.innerHTML; try { await navigator.clipboard.writeText(shareLink()); flash(b, true, idle); } catch { flash(b, false, idle); } };
   $('#r-save').onclick = e => { saveOpponent(); flash(e.currentTarget, true, e.currentTarget.innerHTML); };
   S.panel = 'summary';
-  renderSummary(); renderPlan(); renderExplorer(); renderSheet(); renderPractice(true);
+  renderSummary(); renderIntel(); renderPlan(); renderExplorer(); renderSheet(); renderPractice(true);
   animateCounts($('#report'));
 }
 function showPanel(name) {
@@ -1838,6 +1932,7 @@ async function loadMe(cc, li, tcs) {
   if (!games.length) games = await attempt(0);       // inactive account: use whatever exists
   if (!games.length) { ME.state = 'empty'; return; }
   ME.trees = { white: buildTree(games.filter(g => g.color === 'white')), black: buildTree(games.filter(g => g.color === 'black')) };
+  ME.rating = games.slice().sort((a, b) => b.t - a.t).find(g => g.myRating)?.myRating;
   ME.n = games.length; ME.state = 'ready';
 }
 
@@ -1884,7 +1979,7 @@ async function analyseTarget(t, c, my) {
 }
 
 function sheetCard(t, r, c, my, rootN) {
-  const label = { ok: 'Prepared', check: 'Check this', gap: 'No prep yet', unk: r.myTurn ? 'Engine only' : 'Their move' }[r.status];
+  const label = { ok: 'Locked in', check: 'Sus, check it', gap: 'Unprepped', unk: r.myTurn ? 'Engine only' : 'Their move' }[r.status];
   let board = '';
   if (r.pos?.ok) {
     const arrows = [], mv = m => new Chess(r.pos.fen).move(m, { sloppy: true });
@@ -1899,7 +1994,7 @@ function sheetCard(t, r, c, my, rootN) {
     const [a, b] = r.mine;
     bits.push(`<p>You usually play <b>${esc(a.m)}</b> here <span style="color:var(--muted)">(${a.n} game${a.n === 1 ? '' : 's'}, you score ${a.sc}%)</span>${b ? `; sometimes <b>${esc(b.m)}</b> (${b.n})` : ''}.</p>`);
   } else if (ME.state === 'ready' && r.myTurn) {
-    bits.push(`<p><b>You have no games in this position.</b> ${r.depth > 0 ? `Your experience ends after <span class="line">${esc(fmtLine(t.path.slice(0, r.depth)))}</span>.` : `You have not played this opening as ${my === 'white' ? 'White' : 'Black'}.`}</p>`);
+    bits.push(`<p><b>You've got zero games in this position.</b> ${r.depth > 0 ? `Your experience ends after <span class="line">${esc(fmtLine(t.path.slice(0, r.depth)))}</span>.` : `You have not played this opening as ${my === 'white' ? 'White' : 'Black'}.`}</p>`);
   }
   if (r.engine?.length) {
     const e = r.engine;
@@ -1947,9 +2042,155 @@ async function renderSheet() {
   const tot = done.reduce((a, x) => a + x.t.weight, 0) || 1, w = s => done.filter(x => x.r.status === s).reduce((a, x) => a + x.t.weight, 0);
   const todo = done.filter(x => x.r.status === 'gap' || x.r.status === 'check').sort((a, b) => b.t.weight - a.t.weight).slice(0, 3);
   $('#sheet-sum').innerHTML = `<div class="sumline"><span>These ${done.length} lines cover <b>${pct(tot, root.n)}%</b> of their ${c === 'white' ? 'White' : 'Black'} games.</span>
-    ${ME.state === 'ready' ? `<span>You are prepared for <b>${pct(w('ok'), tot)}%</b> of that, ${pct(w('check'), tot)}% needs a check, ${pct(w('gap'), tot)}% has no prep.</span>` : ''}
-    ${todo.length ? `<span>Study first: ${todo.map(x => `<span class="line">${esc(fmtLine(x.t.path))}</span>`).join(' · ')}</span>` : ''}</div>`;
-  renderSummary();
+    ${ME.state === 'ready' ? `<span>You're locked in on <b>${pct(w('ok'), tot)}%</b> of that, ${pct(w('check'), tot)}% is sus, ${pct(w('gap'), tot)}% is unprepped.</span>` : ''}
+    ${todo.length ? `<span>Lock in on: ${todo.map(x => `<span class="line">${esc(fmtLine(x.t.path))}</span>`).join(' · ')}</span>` : ''}</div>`;
+  renderSummary(); renderIntel();
+}
+
+/* ---------- INTEL: facts, recommendations, fun facts ---------- */
+const FUN = [
+  "There are more possible chess games than atoms in the observable universe. Plenty of room for surprises, bestie.",
+  "After just 3 moves each, there are over 9 million possible positions. Nobody is memorising all that.",
+  "The fastest checkmate is Fool's Mate: 1.f3 e5 2.g4 Qh4#. Two moves. Lowkey embarrassing for White.",
+  "A knight can visit every square on the board exactly once. It's called a knight's tour and it's a flex.",
+  "Under the 50-move rule, the longest possible game is 5,898 moves. Please do not attempt.",
+  "The longest official tournament game ran 269 moves (Nikolić vs Arsović, Belgrade 1989) and ended in a draw. Cooked.",
+  "'Checkmate' comes from the Persian 'shah mat', roughly 'the king is helpless'.",
+  "The queen used to be a weak piece that moved one square diagonally. She got her glow-up in the late 1400s.",
+  "Chess started in India around the 6th century as chaturanga. It's been going viral for 1,500 years.",
+  "In 1997, IBM's Deep Blue beat world champion Garry Kasparov in a six-game match. The robots were early.",
+  "Magnus Carlsen became a grandmaster at 13. At that age you were still figuring out the Wi-Fi password.",
+  "Magnus Carlsen hit a rating of 2882 in 2014, the highest ever at the time.",
+  "Garry Kasparov became world champion at 22 in 1985, the youngest undisputed champion ever.",
+  "The game playing in the hero is Morphy's Opera Game, played in a Paris opera house in 1858. He won in 17 moves.",
+  "The Immortal Game (Anderssen vs Kieseritzky, 1851) was won after sacrificing a bishop, both rooks and the queen. Absolute chaos.",
+  "The word 'rook' comes from the Persian 'rukh', meaning chariot.",
+  "In French, the bishop is 'le fou', the jester. Honestly accurate.",
+  "The knight is the only piece that can jump over others. Main character energy.",
+  "White has 20 legal first moves, and so does Black. That's 400 positions after one move each.",
+  "Alan Turing wrote a chess program on paper before any computer could run it, then played it by hand.",
+  "You can promote a pawn to a knight, and sometimes it's the only winning move. It's called underpromotion.",
+  "Sam Loyd composed the shortest possible stalemate, in just 10 moves.",
+  "'Flagging' comes from old analogue clocks, where a little flag dropped when your time ran out.",
+  "En passant exists because pawns got a two-square first move, and people wanted to stop them sneaking past.",
+  "'Gambit' comes from the Italian 'gambetto', a wrestling trip. You're literally tripping them up.",
+  "The first official world championship match was in 1886: Wilhelm Steinitz beat Johannes Zukertort.",
+  "Lichess is free, open source and runs on donations.",
+  "Chess has an estimated 10^44 legal positions. Touch grass, then come back."
+];
+let funIdx = Math.floor(Math.random() * FUN.length);
+const nextFun = () => { funIdx = (funIdx + 1 + Math.floor(Math.random() * 4)) % FUN.length; return FUN[funIdx]; };
+
+function threatInfo() {
+  const g = S.games, n = g.length; if (!n) return null;
+  const r = { w: 0, d: 0, l: 0 }; g.forEach(x => r[x.res]++);
+  let t = pct(r.w + r.d / 2, n), note = '';
+  const them = S.T.ratings[0]?.r, me = ME.rating;
+  if (them && me) { const d = them - me; t += Math.max(-15, Math.min(15, d / 20)); note = d === 0 ? 'same rating as you' : d > 0 ? `rated ${d} above you` : `rated ${-d} below you`; }
+  t = Math.max(5, Math.min(98, Math.round(t)));
+  return { t, note, label: t < 40 ? 'Lowkey chill' : t < 50 ? 'Mid' : t < 60 ? 'Kinda sweaty' : t < 72 ? 'Very sweaty' : 'Final boss' };
+}
+const threatHtml = () => { const x = threatInfo(); return x ? `<div class="threat" title="Vibes only: based on their results and rating"><span>Threat level: <b>${x.label}</b> (${x.t}/100${x.note ? ', ' + x.note : ''})</span><span class="meter" aria-hidden="true"><i style="--v:${x.t / 100}"></i></span></div>` : ''; };
+
+function oppFacts() {
+  const g = S.games.slice().sort((a, b) => a.t - b.t), n = g.length, f = [];
+  if (n < 5) return f;
+  let bw = 0, bl = 0, cw = 0, cl = 0;
+  for (const x of g) { if (x.res === 'w') { cw++; cl = 0; } else if (x.res === 'l') { cl++; cw = 0; } else { cw = 0; cl = 0; } bw = Math.max(bw, cw); bl = Math.max(bl, cl); }
+  let cur = 0; const kind = g[n - 1].res; for (let i = n - 1; i >= 0 && g[i].res === kind; i--) cur++;
+  if (cur >= 3 && kind !== 'd') f.push(['target', kind === 'w' ? `Right now they're on a <b>${cur}-game win streak</b>. Don't get cocky.` : `Right now they're on a <b>${cur}-game losing skid</b>. Could be tilted.`]);
+  if (bw >= 3) f.push(['trophy', `Best heater: <b>${bw} wins in a row</b>. They can get hot.`]);
+  if (bl >= 3) f.push(['x', `Worst arc: <b>${bl} losses in a row</b>. Everybody tilts.`]);
+  const wins = g.filter(x => x.res === 'w');
+  if (wins.length >= 3) { const q = wins.reduce((a, b) => b.len < a.len ? b : a); f.push(['play', `Fastest win: <b>${q.len} moves</b> against ${esc(q.opp)}. That's a speedrun.`]); }
+  const lg = g.reduce((a, b) => b.len > a.len ? b : a); if (lg.len >= 45) f.push(['restart', `Longest game: <b>${lg.len} moves</b>. They'll go the distance.`]);
+  const up = wins.filter(x => x.oppRating && x.myRating && x.oppRating - x.myRating >= 100).sort((a, b) => (b.oppRating - b.myRating) - (a.oppRating - a.myRating))[0];
+  if (up) f.push(['trophy', `Biggest upset: beat <b>${esc(up.opp)}</b>, rated <b>${up.oppRating - up.myRating}</b> points higher.`]);
+  const mine = (x, i) => (i % 2 === 0) === (x.color === 'white');
+  let early = 0, never = 0, longG = 0; const cast = [];
+  for (const x of g) {
+    const qi = x.moves.findIndex((m, i) => mine(x, i) && m[0] === 'Q'); if (qi >= 0 && qi < 14) early++;
+    const ci = x.moves.findIndex((m, i) => mine(x, i) && m.startsWith('O-O')); if (ci >= 0) cast.push(ci);
+    if (x.moves.length >= 30) { longG++; if (ci < 0) never++; }
+  }
+  if (early / n >= .25) f.push(['bulb', `Brings the queen out before move 8 in <b>${pct(early, n)}%</b> of games. Greedy queen energy.`]);
+  if (cast.length >= 8) f.push(['check', `Usually castles by move <b>${Math.round(cast.reduce((a, b) => a + b, 0) / cast.length / 2) + 1}</b>. Safe king, boring king.`]);
+  if (longG >= 10 && never / longG >= .2) f.push(['flip', `Skips castling in <b>${pct(never, longG)}%</b> of longer games. Spicy king.`]);
+  if (n >= 30) {
+    const hrs = Array(24).fill(0); g.forEach(x => hrs[new Date(x.t).getUTCHours()]++);
+    const hh = hrs.indexOf(Math.max(...hrs)); f.push(['target', `Most active around <b>${String(hh).padStart(2, '0')}:00 UTC</b> (${pct(hrs[hh], n)}% of their games).`]);
+    const we = g.filter(x => [0, 6].includes(new Date(x.t).getUTCDay())).length; if (we / n >= .45) f.push(['trophy', `Weekend warrior: <b>${pct(we, n)}%</b> of games on Sat or Sun.`]);
+  }
+  const span = (g[n - 1].t - g[0].t) / 864e5;
+  if (span >= 14) { const pw = Math.round(n / span * 7); f.push(['play', `About <b>${pw} games a week</b>. ${pw >= 40 ? 'Terminally online.' : pw >= 15 ? 'Pretty active.' : 'Casual grinder.'}`]); }
+  const oc = new Map(); g.forEach(x => oc.set(x.opp, (oc.get(x.opp) || 0) + 1));
+  const [rv, rc] = [...oc.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+  if (rc >= 4) f.push(['target', `Played <b>${esc(rv)}</b> ${rc} times. Rival arc?`]);
+  const dr = pct(g.filter(x => x.res === 'd').length, n);
+  if (n >= 30 && dr <= 3) f.push(['trophy', `Almost never draws (<b>${dr}%</b>). They play for the win.`]);
+  else if (dr >= 15) f.push(['check', `Draws <b>${dr}%</b> of the time. Not afraid to split the point.`]);
+  const ser = S.T.series; if (ser.length >= 10) { const sw = Math.max(...ser) - Math.min(...ser); if (sw >= 80) f.push(['restart', `Their rating moved <b>${sw} points</b> in this sample. Volatile.`]); }
+  return f.slice(0, 10);
+}
+
+function recs(c) {
+  const my = c === 'white' ? 'black' : 'white', A = S.A, T = S.T, root = A.trees[c], out = [];
+  if (!root.n) return out;
+  const add = (title, body, btns = []) => out.push({ title, body, btns });
+  const exp = path => { if (ME.state !== 'ready') return ''; const nd = nodeAt(ME.trees[my], path); return nd && nd.n ? ` You've played it ${nd.n} time${nd.n === 1 ? '' : 's'}.` : ' New for you, so drill it first.'; };
+  if (c === 'black') {                                           // they have Black, so you choose the first move
+    let best = null;
+    for (const [fm, fk] of sortedKids(root)) if (fk.n >= 3) { const sc = score(fk); if (!best || sc < best.sc) best = { fm, fk, sc }; }
+    if (best) add(`Open with 1.${esc(best.fm)}`, `They only score <b>${Math.round(best.sc * 100)}%</b> against it (${best.fk.n} games). Easy pick if it fits your style.${exp([best.fm])}`, [{ t: 'practice', path: [best.fm] }]);
+  } else {                                                       // they have White, so you choose your reply to their main move
+    const top = sortedKids(root)[0];
+    if (top) {
+      const [fm, fk] = top; let best = null;
+      for (const [rm, rk] of sortedKids(fk)) if (rk.n >= 3) { const sc = score(rk); if (!best || sc < best.sc) best = { rm, rk, sc }; }
+      if (best) add(`Answer 1.${esc(fm)} with ${esc(best.rm)}`, `They open 1.${esc(fm)} in ${pct(fk.n, root.n)}% of games, and ${esc(best.rm)} holds them to <b>${Math.round(best.sc * 100)}%</b> (${best.rk.n} games).${exp([fm, best.rm])}`, [{ t: 'practice', path: [fm, best.rm] }]);
+    }
+  }
+  const bad = A.spots[c].bad[0];
+  if (bad) add('Steer into this line', `<span class="line">${esc(fmtLine(bad.path))}</span>: they go ${bad.node.w}W ${bad.node.d}D ${bad.node.l}L over ${bad.node.n} games. Aim for it if you can.`, [{ t: 'practice', path: bad.path }, { t: 'board', path: bad.path }]);
+  const good = A.spots[c].good[0];
+  if (good) add("Don't walk into this one", `<span class="line">${esc(fmtLine(good.path))}</span>: they cook here (${good.node.w}W ${good.node.d}D ${good.node.l}L). Know your way out, or dodge it.`, [{ t: 'practice', path: good.path }, { t: 'board', path: good.path }]);
+  const done = S.sheetDone?.[c];
+  if (done && ME.state === 'ready') {
+    const gaps = done.filter(x => x.r.status === 'gap'), w = gaps.reduce((a, x) => a + x.t.weight, 0), tot = done.reduce((a, x) => a + x.t.weight, 0);
+    if (gaps.length) add('Fix your gaps first', `You've got no prep for <b>${pct(w, tot)}%</b> of their main lines. The prep sheet lists them in order.`, [{ t: 'goto', panel: 'sheet', label: 'Open prep sheet' }]);
+  } else if (ME.state === 'none') add('Add your usernames', 'Put your own Chess.com or Lichess in Scout options and the prep sheet can check which of their lines you actually know.');
+  if (T.loss.n >= 5 && T.loss.time >= 30) add('Make the clock your weapon', `They flag in <b>${T.loss.time}%</b> of their losses. Keep it messy, don't rush trades, and let their time burn.`);
+  else if (T.loss.n >= 5 && T.loss.resign >= 70) add('Convert cleanly', `They resign in <b>${T.loss.resign}%</b> of losses. Get a clear edge and they often fold, so no need to over-press.`);
+  if (T.win.n >= 5 && T.win.mate >= 35) add('Protect your king', `<b>${T.win.mate}%</b> of their wins end in checkmate. Keep your king safe and skip the pawn-hunting.`);
+  if (S.games.length >= 20 && T.short >= 30) add('Come loaded early', `<b>${T.short}%</b> of their games end before move 20. They're sharp early, so know your first ten moves cold.`);
+  else if (T.long >= 30) add('Pack patience', `<b>${T.long}%</b> of their games run past move 50. They grind, so don't get lazy in the endgame.`);
+  if (T.vsHigher.n >= 8) add(T.vsHigher.sc <= 35 ? 'The rating gap helps you' : T.vsHigher.sc >= 55 ? 'They punch up' : 'Higher-rated is no panic', `Against players 100+ higher they score <b>${T.vsHigher.sc}%</b> (${T.vsHigher.n} games). ${T.vsHigher.sc <= 35 ? 'Rating gaps matter for them.' : T.vsHigher.sc >= 55 ? "Don't relax just because you're rated higher." : 'About what you would expect.'}`);
+  const tcTot = T.tc.reduce((a, x) => a + x.n, 0), tc0 = T.tc.slice().sort((a, b) => b.n - a.n)[0];
+  if (tc0 && (tc0.t === 'bullet' || tc0.t === 'blitz') && pct(tc0.n, tcTot) >= 70) add('Their data is mostly blitz', "In a slower tournament game they may play more carefully, so treat these numbers as vibes, not law.");
+  if (S.staleNote) add('Their data is old', 'Their latest games are not recent. Styles change, so keep an eye out for surprises.');
+  return out;
+}
+const recBtn = b => b.t === 'practice' ? `<button class="mini" type="button" data-practice="${esc(b.path.join(' '))}">${ic('play')}Practice</button>`
+  : b.t === 'board' ? `<button class="mini" type="button" data-open="${esc(b.path.join(' '))}">Board</button>`
+  : `<button class="mini" type="button" data-goto="${b.panel}">${esc(b.label)}</button>`;
+const recHtml = r => `<li><b>${r.title}</b><div style="color:var(--ink-2)">${r.body}</div>${r.btns.length ? `<div class="row2"><span></span><span class="btns">${r.btns.map(recBtn).join('')}</span></div>` : ''}</li>`;
+const factHtml = f => `<li class="fact"><span class="fi">${ic(f[0])}</span><span>${f[1]}</span></li>`;
+
+function renderIntel() {
+  const el = $('#intel-card'); if (!el || !S.A) return;
+  const c = S.color, my = c === 'white' ? 'Black' : 'White', R = recs(c), F = oppFacts();
+  el.innerHTML = `<h3>Intel on ${esc(S.label)}</h3>
+    <p class="lead" style="margin:0 0 4px">Receipts and a game plan, all pulled from their ${S.games.length} games. Small sample means the percentages are vibes.</p>
+    ${threatHtml()}
+    <div class="sumcols">
+      <div class="sbox"><h4>Game plan (you've got ${my})</h4>${R.length ? `<ul>${R.map(recHtml).join('')}</ul>` : '<p class="status">Not enough games to cook up a plan yet.</p>'}</div>
+      <div class="sbox"><h4>Receipts</h4>${F.length ? `<ul>${F.map(factHtml).join('')}</ul>` : '<p class="status">Not enough games for facts yet.</p>'}</div>
+      <div class="sbox wide"><h4>Chess fun fact</h4><p id="intel-fun">${esc(nextFun())}</p><div class="row2"><span></span><span class="btns"><button class="mini" id="intel-fun-next" type="button">Another one</button></span></div></div>
+    </div>`;
+  $$('#intel-card [data-open]').forEach(b => b.onclick = () => openLine(c, b.dataset.open.split(' ')));
+  $$('#intel-card [data-practice]').forEach(b => b.onclick = () => startPracticeAt(b.dataset.practice.split(' ')));
+  $$('#intel-card [data-goto]').forEach(b => b.onclick = () => showPanel(b.dataset.goto));
+  $('#intel-fun-next').onclick = () => { const p = $('#intel-fun'); p.textContent = nextFun(); p.classList.remove('swap'); void p.offsetWidth; p.classList.add('swap'); };
 }
 
 /* ---------- SUMMARY: the one-screen briefing ---------- */
@@ -1971,7 +2212,7 @@ function renderSummary() {
     });
   }
   const fav = A.openings[c][0];
-  if (fav) expect.push(`Favourite opening: <b>${esc(fav.name)}</b>, ${fav.n} games, they score ${pct(fav.w + fav.d / 2, fav.n)}%.`);
+  if (fav) expect.push(`Comfort opening: <b>${esc(fav.name)}</b>, ${fav.n} games, they score ${pct(fav.w + fav.d / 2, fav.n)}%.`);
   const top = A.lines[c][0];
   if (top) expect.push(`Most repeated line (${top.node.n} games): <span class="line">${esc(fmtLine(top.path))}</span> ${open(top.path)}`);
 
@@ -1984,26 +2225,29 @@ function renderSummary() {
     const todo = done.filter(x => x.r.status === 'gap' || x.r.status === 'check').sort((a, b) => b.t.weight - a.t.weight).slice(0, 4);
     study = todo.length ? `<ul>${todo.map(x => `<li><span class="st ${x.r.status}">${x.r.status === 'gap' ? 'No prep' : 'Check'}</span> <span class="line">${esc(fmtLine(x.t.path))}</span>
         <div class="row2"><span class="legend" style="margin:0">${x.t.weight} of their games</span><span>${prac(x.t.path)} ${open(x.t.path, 'Board')}</span></div></li>`).join('')}</ul>`
-      : '<p>You have covered their main lines. Use Practice to keep them fresh.</p>';
+      : "<p>You've got their main lines covered. Run Practice to keep them fresh.</p>";
   } else if (ME.state === 'loading') {
-    study = '<p class="status">Checking your own games against their lines…</p>';
+    study = '<p class="status">Checking your games against their lines…</p>';
   } else {
     const lines = A.lines[c].slice(0, 3);
-    study = `<p class="legend" style="margin-top:0">${ME.state === 'none' ? 'Add your own usernames in the Scout form for a personal study list. Meanwhile, their three most common lines:' : 'Could not read your games. Their three most common lines:'}</p>
+    study = `<p class="legend" style="margin-top:0">${ME.state === 'none' ? 'Add your usernames in Scout options for a personal study list. For now, their three most common lines:' : 'Could not read your games. Their three most common lines:'}</p>
       <ul>${lines.map(l => `<li><span class="line">${esc(fmtLine(l.path))}</span><div class="row2"><span class="legend" style="margin:0">${l.node.n} games</span><span>${prac(l.path)} ${open(l.path, 'Board')}</span></div></li>`).join('')}</ul>`;
   }
 
+  const plan = recs(c).slice(0, 3);
   const newest = S.games[0]?.t ? new Date(S.games[0].t).toISOString().slice(0, 10) : '';
-  el.innerHTML = `<h3>Before the round: you have ${myName}</h3>
-    <p class="lead" style="margin:0 0 4px">Based on ${root.n} of their games as ${theirName}${newest ? `, newest ${newest}` : ''}. Practice puts you on the board against their real moves.</p>
+  el.innerHTML = `<h3>Pre-game lock-in: you've got ${myName}</h3>
+    <p class="lead" style="margin:0 0 4px">Based on ${root.n} of their games as ${theirName}${newest ? `, newest ${newest}` : ''}. Hit Practice to spar against their real moves.</p>
+    ${threatHtml()}
     <div class="sumcols">
-      <div class="sbox"><h4>What to expect</h4><ul>${expect.map(e => `<li>${e}</li>`).join('') || '<li>Not enough games to say.</li>'}</ul></div>
-      <div class="sbox"><h4>Study first</h4>${study}</div>
-      <div class="sbox"><h4>Steer toward (they struggle)</h4>${steer.length ? `<ul>${steer.map(spotLi).join('')}</ul>` : '<p class="status">No clear weak line yet.</p>'}</div>
-      <div class="sbox"><h4>Be ready for (they do well)</h4>${beware.length ? `<ul>${beware.map(spotLi).join('')}</ul>` : '<p class="status">No standout strength yet.</p>'}</div>
-      ${T.insights.length ? `<div class="sbox" style="grid-column:1/-1"><h4>Habits</h4><ul>${T.insights.slice(0, 3).map(i => `<li>${i}</li>`).join('')}</ul></div>` : ''}
+      <div class="sbox wide"><h4>Your game plan</h4>${plan.length ? `<ul>${plan.map(recHtml).join('')}</ul>` : '<p class="status">Not enough games to cook up a plan yet.</p>'}<div class="row2"><span></span><span class="btns"><button class="mini" type="button" data-goto="intel">More intel and receipts</button></span></div></div>
+      <div class="sbox"><h4>The vibe check</h4><ul>${expect.map(e => `<li>${e}</li>`).join('') || '<li>Not enough games to say.</li>'}</ul></div>
+      <div class="sbox"><h4>Lock in on these</h4>${study}</div>
+      <div class="sbox"><h4>Where they fold</h4>${steer.length ? `<ul>${steer.map(spotLi).join('')}</ul>` : '<p class="status">No obvious weak spot yet.</p>'}</div>
+      <div class="sbox"><h4>Where they cook</h4>${beware.length ? `<ul>${beware.map(spotLi).join('')}</ul>` : '<p class="status">Nothing scary stands out yet.</p>'}</div>
+      ${T.insights.length ? `<div class="sbox" style="grid-column:1/-1"><h4>Their tells</h4><ul>${T.insights.slice(0, 3).map(i => `<li>${i}</li>`).join('')}</ul></div>` : ''}
     </div>
-    <div class="cta"><button class="primary" type="button" data-goto="practice">${ic('play')}Start practice</button><button class="ghost" type="button" data-goto="sheet">Open prep sheet</button><button class="ghost" type="button" data-goto="explorer">Explore their moves</button></div>`;
+    <div class="cta"><button class="primary" type="button" data-goto="practice">${ic('play')}Run drills</button><button class="ghost" type="button" data-goto="sheet">Prep sheet</button><button class="ghost" type="button" data-goto="explorer">Explore moves</button></div>`;
   $$('#summary-card [data-open]').forEach(b => b.onclick = () => openLine(c, b.dataset.open.split(' ')));
   $$('#summary-card [data-practice]').forEach(b => b.onclick = () => startPracticeAt(b.dataset.practice.split(' ')));
   $$('#summary-card [data-goto]').forEach(b => b.onclick = () => showPanel(b.dataset.goto));
@@ -2027,7 +2271,7 @@ function strengthText(strength) {
   if (STRENGTHS[strength]) return STRENGTHS[strength][0].toLowerCase();
   const r = S.T?.ratings?.[0]?.r; return r ? `matched to their rating (about ${r})` : 'a club-level setting';
 }
-const VERDICT = { best: 'Best', good: 'Good', ok: 'OK', inacc: 'Inaccuracy', bad: 'Mistake', none: 'No data' };
+const VERDICT = { best: 'Slay', good: 'Solid', ok: 'Mid', inacc: 'Kinda sus', bad: 'Cooked', none: 'No data' };
 const plyLabel = i => i % 2 === 0 ? `${i / 2 + 1}.` : `${(i - 1) / 2 + 1}...`;
 
 function renderPractice(reset) {
@@ -2051,18 +2295,18 @@ function renderPractice(reset) {
   }
   const arrows = PR.hint ? [{ from: PR.hint.from, to: PR.hint.to, w: 16, color: '#2f9e44', op: .85 }] : [];
   const myTurn = PR.started && !PR.over && !isTheirTurn(c, PR.path.length);
-  const status = !PR.started ? `Pick a start and press Start. You play ${myName}.`
-    : PR.over ? 'Drill finished.' : PR.busy ? (PR.msg || 'Thinking…') : myTurn ? `Your move (${myName}).${PR.engineMode ? ' The engine is playing for them.' : ''}` : 'Their move…';
+  const status = !PR.started ? `Pick a start and hit Run it. You're ${myName}.`
+    : PR.over ? 'Run complete.' : PR.busy ? (PR.msg || 'Thinking…') : myTurn ? `Your move. You're ${myName}.${PR.engineMode ? ' The engine is playing for them.' : ''}` : "They're thinking…";
   const t = PR.tally, nMine = PR.log.filter(l => l.kind === 'me').length;
   const autoRating = S.T?.ratings?.[0]?.r;
   el.innerHTML = `<h3>Practice: you are ${myName}, they play their usual ${c === 'white' ? 'White' : 'Black'}</h3>
-    <p class="lead" style="margin:0 0 4px">They answer with moves from their real games. After each of your moves the engine gives a verdict. When you or they leave their book, the engine plays for them so you can keep going into the middlegame.</p>
+    <p class="lead" style="margin:0 0 4px">They reply with moves from their real games. After every move you get an engine verdict. Once you (or they) leave the book, the engine plays their side so the drill keeps going.</p>
     <div class="actions noprint" style="margin-top:12px">
-      <button class="primary" id="pr-go" type="button">${PR.started ? ic('restart') + 'Restart' : ic('play') + 'Start drill'}</button>
-      ${PR.started && !PR.over ? `<button class="ghost" id="pr-stop" type="button">${ic('stop')}Stop</button>` : ''}
+      <button class="primary" id="pr-go" type="button">${PR.started ? ic('restart') + 'Run it back' : ic('play') + 'Run it'}</button>
+      ${PR.started && !PR.over ? `<button class="ghost" id="pr-stop" type="button">${ic('stop')}Bail</button>` : ''}
     </div>
     <details class="more noprint" id="pr-more" ${PR.started ? '' : 'open'}>
-      <summary>Drill settings<span class="sum">${esc(PR.startIdx === '' ? 'from move 1' : 'from a common line')} · ${PR.mode === 'main' ? 'their usual move' : 'like their games'} · engine ${esc(strengthText(PR.strength))}</span>${ic('chev', 'chev')}</summary>
+      <summary>Settings<span class="sum">${esc(PR.startIdx === '' ? 'from move 1' : 'from a common line')} · ${PR.mode === 'main' ? 'their usual move' : 'like their games'} · engine ${esc(strengthText(PR.strength))}</span>${ic('chev', 'chev')}</summary>
       <div class="prbar">
         <div><label for="pr-start">Start from</label><select id="pr-start">${opts}</select></div>
         <div><label for="pr-mode">In their book, they play</label><select id="pr-mode"><option value="sample" ${PR.mode === 'sample' ? 'selected' : ''}>Like in their games (varies)</option><option value="main" ${PR.mode === 'main' ? 'selected' : ''}>Their usual move every time</option></select></div>
@@ -2090,7 +2334,7 @@ function renderPractice(reset) {
   $('#pr-start').onchange = e => { PR.startIdx = e.target.value; };
   $('#pr-mode').onchange = e => { PR.mode = e.target.value; };
   $('#pr-strength').onchange = e => { PR.strength = e.target.value; };
-  const stop = $('#pr-stop'); if (stop) stop.onclick = () => practiceEnd(PR, 'Drill stopped', `You played ${PR.log.filter(l => l.kind === 'me').length} move(s) in this drill.`);
+  const stop = $('#pr-stop'); if (stop) stop.onclick = () => practiceEnd(PR, 'Run ended', `You played ${PR.log.filter(l => l.kind === 'me').length} move(s) in this drill.`);
   $('#pr-flip').onclick = () => { PR.flip = !flip; renderPractice(); };
   $('#pr-hint').onclick = practiceHint;
   if (use3d) {
@@ -2122,10 +2366,10 @@ async function practiceStart(customPath) {
   renderPractice();
   if (isTheirTurn(PR.c, PR.path.length)) await practiceTheirMove(self);
 }
-const gameOverText = self => self.ch.in_checkmate() ? (self.ch.turn() === (self.my === 'white' ? 'w' : 'b') ? 'Checkmate. They win this one.' : 'Checkmate. You win!') : 'The game is drawn.';
+const gameOverText = self => self.ch.in_checkmate() ? (self.ch.turn() === (self.my === 'white' ? 'w' : 'b') ? 'Checkmate. They got you this time.' : 'Checkmate. You win. Slay.') : 'The game is drawn.';
 function leaveBook(self, text) {                                    // from here on the engine plays their moves
   self.engineMode = true;
-  self.log.push({ kind: 'note', text: `${text} The engine now plays for them, ${strengthText(self.strength)}.` });
+  self.log.push({ kind: 'note', text: `${text} Off script now: the engine plays their side, ${strengthText(self.strength)}.` });
 }
 async function practiceEngineMove(self) {
   if (PR !== self || self.over) return;
@@ -2318,13 +2562,13 @@ $('#scout-form').onsubmit = async e => {
   e.preventDefault();
   const cc = cleanUser($('#s-cc').value), li = cleanUser($('#s-li').value);
   const st = $('#s-status'), btn = $('#s-go');
-  if (!cc && !li) { st.textContent = 'Enter at least one username.'; return; }
+  if (!cc && !li) { st.textContent = 'Drop at least one username first.'; return; }
   const tcs = new Set($$('input[name=tc]:checked').map(x => x.value));
-  if (!tcs.size) { st.textContent = 'Pick at least one time control.'; return; }
+  if (!tcs.size) { st.textContent = 'Pick at least one time control, bestie.'; return; }
   const o = { months: +$('#s-months').value, max: +$('#s-max').value, rated: $('#s-rated').checked, tcs };
   btn.disabled = true;
   $('#report').innerHTML = `<div class="card" aria-hidden="true"><span class="sk" style="width:36%;height:26px"></span><span class="sk" style="width:78%;margin-top:16px"></span><span class="sk" style="width:52%;margin-top:8px"></span></div>
-    <div class="card" aria-hidden="true"><span class="sk" style="width:28%;height:20px"></span><span class="sk" style="width:92%;margin-top:16px"></span><span class="sk" style="width:84%;margin-top:8px"></span><span class="sk" style="width:90%;margin-top:8px"></span><span class="sk" style="width:60%;margin-top:8px"></span></div>`;
+    <div class="card"><p class="status" style="margin:0 0 6px">While we cook, a fun fact:</p><p>${esc(nextFun())}</p></div>`;
   const prog = $('#s-prog'); prog.hidden = false; prog.classList.add('ind');
   const say = t => { st.textContent = t; };
   const run = async opts => {
@@ -2336,11 +2580,11 @@ $('#scout-form').onsubmit = async e => {
     results.forEach(r => r.status === 'fulfilled' ? games.push(...r.value) : errs.push(r.reason.message));
     return { games, errs };
   };
-  say('Fetching games…');
+  say('Grabbing their games…');
   let { games, errs } = await run(o);
   let widened = false;
   if (!games.length && !errs.length && o.months) {       // nothing recent: fall back to their most recent games of any age
-    say('No recent games. Looking further back…');
+    say('No recent games. Digging through the archives…');
     ({ games, errs } = await run({ ...o, months: 0 }));
     widened = games.length > 0;
   }
@@ -2353,11 +2597,11 @@ $('#scout-form').onsubmit = async e => {
   games.sort((a, b) => b.t - a.t);
   const newest = games[0].t, ageDays = Math.floor((Date.now() - newest) / 864e5);
   const staleNote = ageDays > 60
-    ? `Their most recent game in this data was ${ago(newest)} (${new Date(newest).toISOString().slice(0, 10)}).${widened ? ' Nothing was found in your chosen period, so this shows their latest games of any age.' : ''} Habits and openings may have changed since. Check whether they have another account.`
+    ? `Heads up: their latest game in this data was ${ago(newest)} (${new Date(newest).toISOString().slice(0, 10)}).${widened ? ' Nothing was found in your chosen period, so this shows their latest games of any age.' : ''} They may have changed their style, or they're on a new account. Worth checking.`
     : '';
   posCache.clear(); evalToken++;
   S = { games, A: analyse(games), T: tendencies(games), color: 'white', path: { white: [], black: [] }, flip: null, staleNote, cc, li, label: [cc, li].filter(Boolean).join(' / ') };
-  st.textContent = errs.length ? errs.join(' ') : `Done: ${games.length} games.`;
+  st.textContent = errs.length ? errs.join(' ') : `Done. ${games.length} games loaded. Let's cook.`;
   const meCc = cleanUser($('#m-cc').value), meLi = cleanUser($('#m-li').value);
   store.set('me', { cc: meCc, li: meLi });
   ME = { cc: meCc, li: meLi, trees: null, state: (meCc || meLi) ? 'loading' : 'none', n: 0 };
@@ -2425,7 +2669,7 @@ const saveRoster = () => store.set('roster', ROSTER);
 function renderRoster() {
   const el = $('#t-list');
   if (!ROSTER.length) {
-    el.innerHTML = `<div class="empty narrow"><h2 class="h-sm">No players yet</h2>
+    el.innerHTML = `<div class="empty narrow"><h2 class="h-sm">Nobody here yet</h2>
       <ol class="steps"><li>On chess-results.com, open your tournament and choose the starting rank list or a round's pairings.</li>
       <li>Select the table, copy it, and paste it above.</li>
       <li>For each opponent, Find accounts fills in the name, country and a rating range, and remembers the accounts you pick.</li></ol></div>`;
@@ -2461,12 +2705,12 @@ function startFind(i) {
 $('#f-name').addEventListener('input', () => { FINDFOR = null; });           // a hand-edited name no longer belongs to the roster row
 $('#t-read').onclick = () => {
   const found = parseRoster($('#t-paste').value), st = $('#t-status');
-  if (!found.length) { st.textContent = 'No players found. Copy the whole table, including the name column.'; return; }
+  if (!found.length) { st.textContent = "Couldn't find any players. Copy the whole table, name column included."; return; }
   const before = ROSTER.length;
   mergePlayers(ROSTER, found);
   const added = ROSTER.length - before;
   saveRoster(); renderRoster();
-  st.textContent = `Read ${found.length} players, ${added} new.`;
+  st.textContent = `Loaded ${found.length} players (${added} new).`;
 };
 $('#t-clear').onclick = () => { ROSTER = []; saveRoster(); $('#t-paste').value = ''; $('#t-status').textContent = 'List cleared.'; renderRoster(); };
 
@@ -2521,6 +2765,10 @@ $('#t-clear').onclick = () => { ROSTER = []; saveRoster(); $('#t-paste').value =
   $('#btn-3d').onclick = () => { GL3D.setPref(!GL3D.pref); sync3d(); initHero(); if (S.A) { renderExplorer(); renderPractice(); } };
   GL3D.onReady.push(() => { initHero(); if (S.A) { renderExplorer(); renderPractice(); } });
   GL3D.load().then(ok => { if (!ok) { $('#btn-3d').hidden = true; initHero(); } });
+  const funEl = $('#fun-text'), swap = el => { el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap'); };
+  const showFun = () => { funEl.textContent = nextFun(); swap(funEl); };
+  showFun(); $('#fun-next').onclick = showFun;
+  setInterval(() => { if (!document.hidden && !$('#view-find').hidden) showFun(); }, 22000);
   initHero();
 })();
 </script>
