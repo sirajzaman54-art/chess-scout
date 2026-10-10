@@ -5,287 +5,441 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chess Scout</title>
 <meta name="description" content="Find an opponent's Chess.com and Lichess accounts and get an opening report for your next round.">
-<meta name="theme-color" content="#2d6a3e">
+<meta name="theme-color" content="#1c7a4b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
+/* Chess Scout: quiet analysis-room look. Restrained green accent used for actions and selection only.
+   Type: Geist for UI, Geist Mono for notation and figures. Icons are drawn SVG, pieces are the Cburnett set. */
 :root{
-  --bg:#f5f3ec; --surface:#ffffff; --surface2:#efece2; --ink:#1d211b; --muted:#5d6557; --line:#dcd8ca;
-  --accent:#2d6a3e; --accent-ink:#ffffff; --accent-soft:#e1efe4;
-  --win:#2f7d46; --draw:#a7ab9f; --loss:#b3402f;
-  --warn-bg:#fbf0d4; --warn-ink:#6b4e0a; --bad-bg:#f8e0db; --bad-ink:#8a2a1c;
-  --radius:10px;
+  --font:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+  --bg:#f2f5f3; --surface:#ffffff; --surface-2:#e8eeea;
+  --ink:#101915; --ink-2:#43534b; --ink-3:#5a6a61;
+  --line:#dbe2de; --line-strong:#c2ccc6;
+  --accent:#1c7a4b; --accent-hover:#16643c; --accent-soft:#e1f0e7; --accent-text:#14623a; --accent-ink:#ffffff;
+  --win:#2a9d61; --draw:#9aa8a1; --loss:#d4493c;
+  --warn-bg:#fcf1d4; --warn-ink:#654508; --bad-bg:#fae3df; --bad-ink:#8c2a1e;
+  --r:12px; --r-sm:8px;
+  --float:0 -1px 0 var(--line),0 -10px 28px rgba(16,25,21,.08);
+  color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#111410; --surface:#1a1e18; --surface2:#222820; --ink:#e9ece3; --muted:#9ba294; --line:#2c3328;
-    --accent:#6fbf86; --accent-ink:#0d1a10; --accent-soft:#1f3226;
-    --win:#5fb577; --draw:#6f766a; --loss:#d9715f;
-    --warn-bg:#3a3014; --warn-ink:#f0d68a; --bad-bg:#40201b; --bad-ink:#f2b3a8;
+    --bg:#0e1311; --surface:#151c19; --surface-2:#1d2823;
+    --ink:#e8efea; --ink-2:#b1bfb7; --ink-3:#8c9c93;
+    --line:#26322d; --line-strong:#364540;
+    --accent:#4cc38a; --accent-hover:#6bd3a0; --accent-soft:#17352a; --accent-text:#74d9a6; --accent-ink:#06170e;
+    --win:#4cc38a; --draw:#71817a; --loss:#ef6b5d;
+    --warn-bg:#3a2f12; --warn-ink:#f1d98f; --bad-bg:#3d1e1a; --bad-ink:#f4b5aa;
+    --float:0 -1px 0 var(--line),0 -10px 28px rgba(0,0,0,.35);
+    color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#111410; --surface:#1a1e18; --surface2:#222820; --ink:#e9ece3; --muted:#9ba294; --line:#2c3328;
-  --accent:#6fbf86; --accent-ink:#0d1a10; --accent-soft:#1f3226;
-  --win:#5fb577; --draw:#6f766a; --loss:#d9715f;
-  --warn-bg:#3a3014; --warn-ink:#f0d68a; --bad-bg:#40201b; --bad-ink:#f2b3a8;
+  --bg:#0e1311; --surface:#151c19; --surface-2:#1d2823;
+  --ink:#e8efea; --ink-2:#b1bfb7; --ink-3:#8c9c93;
+  --line:#26322d; --line-strong:#364540;
+  --accent:#4cc38a; --accent-hover:#6bd3a0; --accent-soft:#17352a; --accent-text:#74d9a6; --accent-ink:#06170e;
+  --win:#4cc38a; --draw:#71817a; --loss:#ef6b5d;
+  --warn-bg:#3a2f12; --warn-ink:#f1d98f; --bad-bg:#3d1e1a; --bad-ink:#f4b5aa;
+  --float:0 -1px 0 var(--line),0 -10px 28px rgba(0,0,0,.35);
+  color-scheme:dark;
 }
+
+/* ---- base ---- */
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:1040px;margin:0 auto;padding:0 16px 96px}
-header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:20px 0 12px}
-.brand{font:600 1.5rem/1 Georgia,"Iowan Old Style",serif;letter-spacing:.01em;margin-right:auto}
-.brand span{color:var(--accent)}
-nav.tabs{display:flex;gap:4px;background:var(--surface2);padding:4px;border-radius:999px}
-nav.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 18px;border-radius:999px;cursor:pointer}
-nav.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-h2{font:600 1.25rem/1.3 Georgia,"Iowan Old Style",serif;margin:0 0 4px}
-h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
-p.lead{color:var(--muted);margin:0 0 16px;max-width:64ch}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
-.grid{display:grid;gap:12px}
+html{-webkit-text-size-adjust:100%;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+::selection{background:#bfe0cd;color:#0b1f15}
+@supports (background:color-mix(in srgb,red,blue)){::selection{background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit}}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-track{background:transparent}
+input,select,textarea,button{font:inherit;color:inherit;caret-color:var(--accent)}
+button{cursor:pointer}
+button:disabled{cursor:default}
+a{color:var(--accent-text);text-underline-offset:.18em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+[hidden]{display:none!important}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+.ic{width:1.2em;height:1.2em;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+h2{font-size:1.5rem;line-height:1.2;font-weight:650;letter-spacing:-.02em}
+h3{font-size:1.0625rem;line-height:1.3;font-weight:650;letter-spacing:-.01em;margin:0 0 4px}
+h4{font-size:.9375rem;font-weight:650;letter-spacing:-.005em;margin:0 0 6px}
+p{margin:0}
+.lead{color:var(--ink-2);max-width:62ch;margin:6px 0 20px}
+.legend{font-size:.8125rem;color:var(--ink-3);margin-top:6px}
+.status{color:var(--ink-3);font-size:.875rem;min-height:1.3em}
+.line{font-family:var(--mono);font-size:.8125rem;letter-spacing:-.01em;overflow-wrap:anywhere}
+.cnt,.sc,td.n,th.n,.pv .e,.rrow .no,.facts b{font-variant-numeric:tabular-nums}
+
+/* ---- shell ---- */
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px 64px}
+header.top{display:flex;align-items:center;gap:16px;padding:20px 0 18px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;font-weight:650;font-size:1.0625rem;letter-spacing:-.015em}
+.brand .mark{width:34px;height:34px;border-radius:10px;background:var(--accent);display:grid;place-items:center}
+.brand .mark svg{width:26px;height:26px}
+nav.tabs{display:flex;gap:2px}
+nav.tabs button{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:var(--ink-2);font-weight:550;transition:background .12s,color .12s}
+nav.tabs button:hover{background:var(--surface-2)}
+nav.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong)}
+@media (max-width:720px){
+  .wrap{padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+  header.top{padding:16px 0 14px}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);box-shadow:var(--float);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:4px}
+  nav.tabs button{flex:1;flex-direction:column;gap:3px;justify-content:center;min-height:52px;padding:4px;font-size:.75rem;color:var(--ink-3);background:transparent!important;box-shadow:none!important}
+  nav.tabs button .ic{width:22px;height:22px}
+  nav.tabs button[aria-selected="true"]{color:var(--accent-text);font-weight:650}
+}
+.narrow{max-width:760px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px}
+@media (max-width:560px){.card{padding:16px}}
+.grid{display:grid;gap:14px}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:640px){.g2,.g3{grid-template-columns:1fr}}
-label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px}
-label small{font-weight:400;color:var(--muted)}
-textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;resize:vertical}
-input[type=text],input[type=number],select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
-.checks{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
-.checks label{display:flex;gap:6px;align-items:center;font-weight:500;margin:0}
-button.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;font:inherit;font-weight:600;padding:10px 20px;cursor:pointer}
-button.primary:disabled{opacity:.55;cursor:progress}
-button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:8px;font:inherit;padding:7px 12px;cursor:pointer}
-button.ghost:hover{border-color:var(--accent)}
-button.mini{font:inherit;font-size:.78rem;padding:2px 9px;border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;cursor:pointer;white-space:nowrap}
-button.mini:hover{background:var(--accent-soft)}
-.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
-.status{color:var(--muted);font-size:.92rem;min-height:1.4em}
-.notice{border-radius:8px;padding:10px 12px;font-size:.92rem;margin:0 0 12px}
+.row-actions,.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+
+/* ---- forms ---- */
+label{display:block;font-size:.8125rem;font-weight:600;margin-bottom:6px}
+label small{font-weight:400;color:var(--ink-3)}
+input[type=text],input[type=number],select,textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface);font-size:16px;transition:border-color .12s,box-shadow .12s}
+textarea{min-height:0;resize:vertical;line-height:1.45}
+input:hover,select:hover,textarea:hover{border-color:var(--ink-3)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(28,122,75,.22)}
+@supports (background:color-mix(in srgb,red,blue)){input:focus-visible,select:focus-visible,textarea:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent)}}
+::placeholder{color:var(--ink-3);opacity:1}
+input[type=checkbox]{accent-color:var(--accent);width:18px;height:18px;margin:0}
+.checks{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.checks label{display:flex;gap:8px;align-items:center;font-weight:500;font-size:.875rem;margin:0;min-height:32px}
+.name-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.name-row input{min-height:48px}
+@media (max-width:560px){.name-row{grid-template-columns:1fr}.name-row .primary{width:100%}}
+
+.primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:var(--r-sm);background:var(--accent);color:var(--accent-ink);font-weight:600;white-space:nowrap;transition:background .12s,transform .06s}
+.primary:hover:not(:disabled){background:var(--accent-hover)}
+.primary:active:not(:disabled){transform:translateY(1px)}
+.primary:disabled{opacity:.5}
+.ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface);color:var(--ink);font-weight:550;white-space:nowrap;text-decoration:none;transition:background .12s,border-color .12s}
+.ghost:hover:not(:disabled){background:var(--surface-2)}
+.ghost:disabled{opacity:.45}
+.mini{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 11px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--ink-2);font-size:.75rem;font-weight:600;white-space:nowrap;text-decoration:none;transition:border-color .12s,color .12s,background .12s}
+.mini:hover{border-color:var(--accent);color:var(--accent-text);background:var(--accent-soft)}
+.mini .ic{width:14px;height:14px}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent-text);font-weight:600;text-decoration:underline;text-underline-offset:.2em}
+
+.notice{border-radius:var(--r-sm);padding:10px 14px;font-size:.875rem;margin:0 0 14px}
 .notice.warn{background:var(--warn-bg);color:var(--warn-ink)}
 .notice.bad{background:var(--bad-bg);color:var(--bad-ink)}
 .notice.info{background:var(--accent-soft);color:var(--ink)}
-[hidden]{display:none!important}
 
-/* candidates */
-.cands{display:grid;gap:10px}
-.cand{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--surface)}
-.cand.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.av{width:48px;height:48px;border-radius:8px;background:var(--surface2);display:grid;place-items:center;font-weight:700;color:var(--muted);overflow:hidden}
+details.more{margin-top:16px;border-top:1px solid var(--line);padding-top:6px}
+details.more>summary,details.card>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;font-weight:600}
+details.more>summary::-webkit-details-marker,details.card>summary::-webkit-details-marker{display:none}
+summary .sum{font-weight:400;color:var(--ink-3);font-size:.8125rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+summary .chev{margin-left:auto;transition:transform .16s}
+details[open]>summary .chev{transform:rotate(180deg)}
+details.card{padding:0}
+details.card>summary{padding:6px 20px}
+details.card>.fold{padding:4px 20px 20px}
+@media (max-width:560px){details.card>summary{padding:6px 16px}details.card>.fold{padding:4px 16px 16px}}
+
+.empty{border:1px dashed var(--line-strong);border-radius:var(--r);padding:18px 20px;color:var(--ink-2)}
+.empty h3{color:var(--ink)}
+.steps{margin:8px 0 0;padding-left:1.25em}
+.steps li{margin:5px 0}
+
+/* ---- skeleton + progress ---- */
+.sk{display:block;height:14px;border-radius:6px;background:var(--surface-2)}
+.prog{height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden;width:100%}
+.prog i{display:block;height:100%;width:100%;background:var(--accent);border-radius:2px;transform:scaleX(0);transform-origin:left;transition:transform .25s ease-out}
+.prog.ind i{transform:none;transition:none;animation:pulse 1.3s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@media (prefers-reduced-motion: no-preference){
+  .sk{background:linear-gradient(90deg,var(--surface-2) 0%,var(--line) 50%,var(--surface-2) 100%);background-size:200% 100%;animation:shim 1.3s linear infinite}
+  @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .panel:not([hidden]){animation:fadein .18s ease-out}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+}
+@media (prefers-reduced-motion: reduce){.prog.ind i{animation:none;opacity:.5}}
+
+/* ---- candidates ---- */
+.cands{display:flex;flex-direction:column}
+.cand{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:start;padding:16px 0;border-top:1px solid var(--line)}
+.cand:first-child{border-top:0;padding-top:6px}
+.cand.sel{background:var(--accent-soft);margin:0 -12px;padding:16px 12px;border-radius:10px;border-top-color:transparent}
+.cand.sel+.cand{border-top-color:transparent}
+.av{width:44px;height:44px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-weight:650;color:var(--ink-3);overflow:hidden}
 .av img{width:100%;height:100%;object-fit:cover}
-.cand .nm{font-weight:700;overflow-wrap:anywhere}
-.cand .nm a{color:inherit}
-.cand .sub{color:var(--muted);font-size:.88rem}
-.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.chip{font-size:.74rem;padding:2px 8px;border-radius:999px;background:var(--surface2);color:var(--muted)}
-.chip.good{background:var(--accent-soft);color:var(--accent)}
+.cand .nm{font-weight:650;overflow-wrap:anywhere}
+.cand .nm a{color:inherit;text-decoration:none}
+.cand .nm a:hover{text-decoration:underline}
+.cand .sub{color:var(--ink-3);font-size:.8125rem;margin-top:1px}
+.cand .side{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.chip{font-size:.6875rem;font-weight:550;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.chip.good{background:var(--accent-soft);color:var(--accent-text)}
 .chip.warn{background:var(--warn-bg);color:var(--warn-ink)}
 .chip.bad{background:var(--bad-bg);color:var(--bad-ink)}
-.badge{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;background:var(--surface2);color:var(--muted)}
-.strength{font-size:.78rem;font-weight:700;text-align:right;white-space:nowrap}
-.strength.s-strong{color:var(--win)} .strength.s-possible{color:var(--warn-ink)} .strength.s-weak{color:var(--muted)}
-@media (max-width:520px){.cand{grid-template-columns:40px 1fr}.cand .side{grid-column:1/-1}.av{width:40px;height:40px}}
-.selbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;z-index:5}
+.badge{display:inline-block;font-size:.6875rem;font-weight:700;padding:1px 7px;border-radius:5px;margin-left:6px;vertical-align:middle;background:var(--surface-2);color:var(--ink-2)}
+.strength{font-size:.75rem;font-weight:650;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.strength.s-strong{background:var(--accent-soft);color:var(--accent-text)}
+.strength.s-possible{background:var(--warn-bg);color:var(--warn-ink)}
+@media (max-width:520px){.cand{grid-template-columns:40px minmax(0,1fr)}.cand .side{grid-column:2;flex-direction:row;align-items:center;justify-content:space-between}.av{width:40px;height:40px}}
+.selbar{position:fixed;left:12px;right:12px;bottom:12px;max-width:740px;margin:0 auto;z-index:25;background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 10px 10px 18px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;box-shadow:0 12px 32px rgba(0,0,0,.28)}
+.selbar .ghost{background:transparent;color:inherit;border-color:rgba(127,127,127,.55)}
+.selbar .ghost:hover{background:rgba(127,127,127,.2)}
+.selbar .btns{display:flex;gap:8px}
+@media (max-width:720px){.selbar{bottom:calc(74px + env(safe-area-inset-bottom))}}
 
-/* report */
-.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:8px}
-.stat{background:var(--surface2);border-radius:8px;padding:10px 12px}
-.stat b{display:block;font-size:1.35rem;line-height:1.2}
-.stat span{font-size:.8rem;color:var(--muted)}
-.line{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88rem}
-.seg{display:inline-flex;background:var(--surface2);border-radius:8px;padding:3px;flex-wrap:wrap}
-.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.colorbar{padding:4px 0 2px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.stick{position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0 4px;margin-bottom:10px;border-bottom:1px solid var(--line)}
-.subtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:thin}
-.subtabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-weight:600;font-size:.9rem;padding:6px 14px;border-radius:999px;cursor:pointer}
-.subtabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.colorbar span{font-size:.85rem;color:var(--muted)}
-.plan{display:grid;gap:8px}
-.planrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg)}
-.planrow .meta{font-size:.8rem;color:var(--muted);margin-top:2px}
-.subhead{font-size:.82rem;font-weight:700;margin:14px 0 6px}
+/* ---- report header ---- */
+.rhead{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.rhead h2{margin-right:auto;overflow-wrap:anywhere}
+.rtools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rtools input{min-height:40px;width:14rem;max-width:100%;font-size:.875rem}
+.facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:14px 0 0;padding-top:14px;border-top:1px solid var(--line);color:var(--ink-2);font-size:.875rem}
+.facts b{color:var(--ink);font-weight:650}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:10px;padding:3px;flex-wrap:wrap}
+.seg button{min-height:34px;padding:0 14px;border:0;border-radius:8px;background:transparent;color:var(--ink-2);font-weight:600;font-size:.875rem;transition:background .12s,color .12s}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line-strong)}
+.stick{position:sticky;top:0;z-index:12;background:var(--bg);border-bottom:1px solid var(--line);margin:0 -20px 18px;padding:0 20px}
+@media (max-width:720px){.stick{margin:0 -16px 16px;padding:0 16px}}
+.subtabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs button{flex:0 0 auto;min-height:44px;padding:0 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ink-3);font-weight:600;transition:color .12s,border-color .12s}
+.subtabs button:hover{color:var(--ink)}
+.subtabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.colorbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0 10px}
+.colorbar span{font-size:.8125rem;color:var(--ink-3)}
+
+/* ---- summary ---- */
+.sumcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px;margin-top:12px}
+@media (max-width:760px){.sumcols{grid-template-columns:1fr}}
+.sbox{padding:18px 0;border-top:1px solid var(--line)}
+.sbox.wide{grid-column:1/-1}
+.sbox ul{margin:0;padding:0;list-style:none}
+.sbox li{padding:8px 0;border-top:1px solid var(--line)}
+.sbox li:first-child{border-top:0;padding-top:2px}
+.sbox .row2{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:6px}
+.sbox .row2 .legend{margin:0}
+.sbox .row2 .btns{display:flex;gap:6px}
+.sbox p{color:var(--ink-2)}
+
+/* ---- plan, explorer, board ---- */
+.subhead{font-size:.8125rem;font-weight:650;color:var(--ink-2);margin:16px 0 8px}
 .firstmoves{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
-.fm{padding:4px 10px;border-radius:8px;background:var(--accent-soft);font-size:.9rem}
-.fm b{font-family:ui-monospace,Consolas,monospace}
-
-.xgrid{display:grid;grid-template-columns:minmax(280px,440px) minmax(0,1fr);gap:18px;margin-top:12px;align-items:start}
-@media (max-width:820px){.xgrid{grid-template-columns:1fr}}
+.fm{padding:5px 11px;border-radius:8px;background:var(--surface-2);font-size:.875rem}
+.fm b{font-family:var(--mono);font-weight:600}
+.plan{display:flex;flex-direction:column}
+.planrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.planrow:first-child{border-top:0}
+.planrow .meta{font-size:.8125rem;color:var(--ink-3);margin-top:2px}
+.xgrid{display:grid;grid-template-columns:minmax(280px,440px) minmax(0,1fr);gap:28px;margin-top:14px;align-items:start}
+@media (max-width:820px){.xgrid{grid-template-columns:1fr;gap:18px}}
 .boardwrap{position:relative;width:100%;max-width:440px;aspect-ratio:1;margin:0 auto}
-.boardwrap svg{width:100%;height:100%;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
-.bctl{display:flex;justify-content:center;gap:6px;margin:10px 0}
-.bctl button{font:inherit;min-width:44px;padding:6px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;cursor:pointer}
-.bctl button:hover:not(:disabled){border-color:var(--accent)}
-.bctl button:disabled{opacity:.4;cursor:default}
-.engine{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--bg);font-size:.9rem}
-.evalbar{height:14px;border-radius:7px;overflow:hidden;background:#222;position:relative;margin:6px 0 8px}
-.evalbar i{display:block;height:100%;background:#f4f4f0;transition:width .25s}
-.evalbar b{position:absolute;right:6px;top:-1px;font-size:.7rem;color:#fff;mix-blend-mode:difference}
-.pv{display:grid;grid-template-columns:3.6rem 1fr;gap:8px;padding:3px 0;border-top:1px solid var(--line)}
+.boardwrap svg{width:100%;height:100%;display:block;border-radius:8px;box-shadow:0 0 0 1px var(--line-strong),0 6px 20px rgba(16,25,21,.12)}
+.bctl{display:flex;justify-content:center;gap:6px;margin:12px 0}
+.bctl button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:46px;min-height:44px;padding:0 14px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:var(--r-sm);font-weight:550;transition:background .12s}
+.bctl button:hover:not(:disabled){background:var(--surface-2)}
+.bctl button:disabled{opacity:.4}
+.engine{border-top:1px solid var(--line);padding-top:12px;font-size:.875rem}
+.evalbar{height:12px;border-radius:6px;overflow:hidden;background:#27302c;position:relative;margin:8px 0 10px}
+.evalbar i{display:block;height:100%;background:#f3f6f4}
+.evalbar b{position:absolute;right:8px;top:-2px;font-size:.6875rem;font-family:var(--mono);color:#fff;mix-blend-mode:difference}
+.pv{display:grid;grid-template-columns:3.8rem minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px solid var(--line)}
 .pv:first-of-type{border-top:0}
-.pv .e{font-weight:700;font-variant-numeric:tabular-nums}
-.crumbs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
-.crumbs button{font:inherit;font-size:.85rem;padding:3px 9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
-.crumbs button:last-child{border-color:var(--accent);color:var(--accent);font-weight:700}
-.rows{display:grid;gap:4px}
-.row{display:grid;grid-template-columns:5.2rem 1fr 5.6rem 6rem 3rem;gap:10px;align-items:center;width:100%;text-align:left;font:inherit;color:inherit;background:var(--bg);border:1px solid transparent;border-radius:8px;padding:7px 10px;cursor:pointer}
-.row:hover{border-color:var(--accent)}
+.pv .e{font-weight:650;font-family:var(--mono);font-size:.8125rem}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px}
+.crumbs button{min-height:30px;padding:0 10px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-2);border-radius:7px;font-size:.8125rem;font-family:var(--mono);transition:background .12s}
+.crumbs button:hover{background:var(--surface-2)}
+.crumbs button:last-child{border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:5.4rem minmax(0,1fr) 5.6rem 6rem 3rem;gap:12px;align-items:center;width:100%;min-height:44px;text-align:left;color:inherit;background:transparent;border:0;border-top:1px solid var(--line);padding:6px 8px;margin:0 -8px;width:calc(100% + 16px);transition:background .1s}
+.row:first-child{border-top:0}
+.row:hover{background:var(--surface-2)}
 .row.theirs{background:var(--accent-soft)}
-.row .mv{font-weight:700;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.95rem}
-.row .bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
-.row .bar i{display:block;height:100%;background:var(--accent)}
-.row .cnt{font-size:.85rem;color:var(--muted);text-align:right}
-.row .sc{font-size:.85rem;text-align:right;font-weight:600}
-.wdl{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface2)}
+.row.theirs:hover{background:var(--surface-2)}
+.row .mv{font-weight:600;font-family:var(--mono);font-size:.875rem}
+.row .bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.row.theirs .bar{background:rgba(127,127,127,.2)}
+.row .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.row .cnt{font-size:.8125rem;color:var(--ink-2);text-align:right}
+.row .sc{font-size:.8125rem;text-align:right;font-weight:650}
+.wdl{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2)}
 .wdl i{display:block;height:100%}
 .wdl .w{background:var(--win)} .wdl .d{background:var(--draw)} .wdl .l{background:var(--loss)}
-@media (max-width:640px){.row{grid-template-columns:4.6rem 1fr 4.2rem 2.6rem}.row .bar{display:none}}
-.legend{font-size:.8rem;color:var(--muted);margin-top:8px}
-.tend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.tbox{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--bg)}
-.tbox ul{margin:0;padding-left:1.1em}
-.tbox li{margin:3px 0}
-.hbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);margin:4px 0 2px}
+@media (max-width:640px){.row{grid-template-columns:4.8rem minmax(0,1fr) 4.4rem 2.6rem}.row .bar{display:none}}
+
+/* ---- habits, tables ---- */
+.tend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 40px;margin-top:6px}
+.tbox{padding:18px 0;border-top:1px solid var(--line)}
+.tbox ul{margin:0;padding:0;list-style:none}
+.tbox li{margin:5px 0;color:var(--ink-2)}
+.tbox li b{color:var(--ink)}
+.hbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);margin:6px 0 4px}
 .hbar i{display:block;height:100%}
-.form{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0}
-.form span{width:20px;height:20px;border-radius:4px;display:grid;place-items:center;font-size:.7rem;font-weight:700;color:#fff}
+.form{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
+.form span{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:.6875rem;font-weight:700;color:#fff}
 .form .w{background:var(--win)} .form .d{background:var(--draw)} .form .l{background:var(--loss)}
-.insight{padding:8px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);margin:6px 0;font-size:.92rem}
-table{width:100%;border-collapse:collapse;font-size:.92rem}
-th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-th{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.insight{padding:10px 14px;border-radius:var(--r-sm);background:var(--warn-bg);color:var(--warn-ink);margin:8px 0 0;font-size:.875rem}
+table{width:100%;border-collapse:collapse;font-size:.875rem}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{font-size:.75rem;font-weight:600;color:var(--ink-3);white-space:nowrap}
 td.n,th.n{text-align:right}
-.res{display:inline-block;min-width:1.6rem;text-align:center;font-weight:700;font-size:.78rem;border-radius:5px;padding:1px 6px;color:#fff}
+.res{display:inline-block;min-width:1.8rem;text-align:center;font-weight:700;font-size:.6875rem;border-radius:5px;padding:2px 7px;color:#fff}
 .res.w{background:var(--win)} .res.d{background:var(--draw)} .res.l{background:var(--loss)}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid var(--muted);vertical-align:middle}
-.dot.white{background:#fff} .dot.black{background:#222}
-.saved{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
-.saved .chipbtn{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--bg)}
-.saved .chipbtn button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:.85rem;padding:4px 10px;cursor:pointer}
-.saved .chipbtn button+button{border-left:1px solid var(--line);color:var(--muted);padding:4px 8px}
-footer{color:var(--muted);font-size:.82rem;margin-top:24px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink-3);vertical-align:middle}
+.dot.white{background:#fff} .dot.black{background:#1b1b1b}
+.saved{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;align-items:center}
+.saved .chipbtn{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;background:var(--surface)}
+.saved .chipbtn button{border:0;background:transparent;font-size:.8125rem;padding:0 12px;min-height:34px;font-weight:550}
+.saved .chipbtn button:hover{background:var(--surface-2)}
+.saved .chipbtn button+button{border-left:1px solid var(--line);color:var(--ink-3);padding:0 9px}
+.saved .chipbtn .ic{width:14px;height:14px}
+footer{color:var(--ink-3);font-size:.75rem;margin-top:32px;max-width:70ch;line-height:1.6}
+footer a{color:inherit}
 
-/* summary */
-.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;margin-top:10px}
-.sbox{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--bg)}
-.sbox h4{margin:0 0 6px;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.sbox ul{margin:0;padding-left:1.1em}
-.sbox li{margin:5px 0}
-.sbox .row2{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}
-.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-
-/* practice */
-.prgrid{display:grid;grid-template-columns:minmax(280px,460px) minmax(0,1fr);gap:18px;align-items:start;margin-top:10px}
-@media (max-width:820px){.prgrid{grid-template-columns:1fr}}
+/* ---- practice ---- */
+.prgrid{display:grid;grid-template-columns:minmax(280px,460px) minmax(0,1fr);gap:28px;align-items:start;margin-top:14px}
+@media (max-width:820px){.prgrid{grid-template-columns:1fr;gap:18px}}
 #pr-board{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.plog{display:grid;gap:6px;max-height:380px;overflow:auto;margin-top:8px}
-.pl{display:grid;grid-template-columns:3.6rem minmax(0,1fr);gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg);font-size:.9rem}
-.pl.me{background:var(--accent-soft)}
-.pl.brk{background:var(--warn-bg);color:var(--warn-ink);font-weight:600}
-.pl .mvn{font-family:ui-monospace,Consolas,monospace;font-weight:700}
-.vd{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;margin-right:6px;color:#fff;white-space:nowrap}
-.vd.best{background:var(--win)} .vd.good{background:#4f9d5d} .vd.ok{background:#7d8478} .vd.inacc{background:#c48a1f} .vd.bad{background:var(--loss)} .vd.none{background:var(--muted)}
-.prbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
-.prbar > div{min-width:10rem;flex:1 1 12rem}
-.endbox{border-radius:8px;padding:10px 12px;background:var(--warn-bg);color:var(--warn-ink);margin-top:8px}
+.plog{display:flex;flex-direction:column;max-height:400px;overflow:auto;margin-top:10px}
+.pl{display:grid;grid-template-columns:3.4rem minmax(0,1fr);gap:8px;padding:8px 6px;border-top:1px solid var(--line);font-size:.875rem}
+.pl:first-child{border-top:0}
+.pl.me{background:var(--accent-soft);border-radius:6px}
+.pl.brk{background:var(--warn-bg);color:var(--warn-ink);font-weight:600;border-radius:6px;margin:4px 0}
+.pl .mvn{font-family:var(--mono);font-weight:600;font-size:.8125rem;color:var(--ink-2)}
+.vd{display:inline-block;font-size:.6875rem;font-weight:700;padding:1px 8px;border-radius:999px;margin:0 6px 0 4px;color:#fff;white-space:nowrap}
+.vd.best{background:var(--win)} .vd.good{background:#4f9d5d} .vd.ok{background:#7a877f} .vd.inacc{background:#b9801a} .vd.bad{background:var(--loss)} .vd.none{background:var(--ink-3)}
+.prbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:4px 0 6px}
+.prbar>div{min-width:10rem;flex:1 1 12rem}
+.endbox{border-radius:var(--r-sm);padding:12px 14px;background:var(--warn-bg);color:var(--warn-ink);margin-top:6px}
 .endbox b{display:block;margin-bottom:2px}
-.snote{margin-top:8px;font-size:.85rem}
-@media print{.snote[data-empty]{display:none}}
+.snote{margin-top:10px;font-size:.875rem}
+.pr-status{text-align:center;margin:0}
 
-/* tournament roster */
-.rrow{display:grid;grid-template-columns:2.2rem minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
-.rrow:last-child{border-bottom:0}
-.rrow .no{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
-.rrow .nm{font-weight:700;overflow-wrap:anywhere}
-.rrow .sub{color:var(--muted);font-size:.88rem}
+/* ---- tournament roster ---- */
+.rrow{display:grid;grid-template-columns:2.2rem minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.rrow:first-child{border-top:0}
+.rrow .no{color:var(--ink-3);text-align:right;font-size:.8125rem}
+.rrow .nm{font-weight:650;overflow-wrap:anywhere}
+.rrow .sub{color:var(--ink-3);font-size:.8125rem}
 .rrow .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-@media (max-width:520px){.rrow{grid-template-columns:1.6rem minmax(0,1fr)}.rrow .btns{grid-column:1/-1;justify-content:flex-start}}
+@media (max-width:520px){.rrow{grid-template-columns:1.6rem minmax(0,1fr)}.rrow .btns{grid-column:2;justify-content:flex-start}}
 
-/* prep sheet */
-.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:10px}
-.scard{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--bg);display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-content:start;break-inside:avoid}
+/* ---- prep sheet ---- */
+.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:0 44px;margin-top:6px}
+.scard{display:grid;grid-template-columns:132px minmax(0,1fr);gap:16px;padding:20px 0;border-top:1px solid var(--line);align-content:start;break-inside:avoid}
 @media (max-width:420px){.scard{grid-template-columns:1fr}.scard .sb{max-width:220px}}
-.scard svg{width:100%;height:auto;display:block;border-radius:4px}
-.scard > div > .line{display:block;margin-bottom:2px}
-.scard p{margin:6px 0 0;font-size:.9rem}
-.st{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:999px;margin-bottom:4px}
-.st.ok{background:var(--accent-soft);color:var(--accent)} .st.check{background:var(--warn-bg);color:var(--warn-ink)}
-.st.gap{background:var(--bad-bg);color:var(--bad-ink)} .st.unk{background:var(--surface2);color:var(--muted)}
-.sumline{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;border-radius:8px;background:var(--accent-soft);margin:8px 0}
-.sumline b{font-size:1.1rem}
-.key{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:8px}
-.key i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.scard svg{width:100%;height:auto;display:block;border-radius:5px;box-shadow:0 0 0 1px var(--line-strong)}
+.scard>div>.line{display:block;margin:2px 0}
+.scard p{margin:6px 0 0;font-size:.875rem;color:var(--ink-2)}
+.scard p b{color:var(--ink)}
+.st{display:inline-block;font-size:.6875rem;font-weight:700;padding:2px 9px;border-radius:999px;margin-bottom:4px}
+.st.ok{background:var(--accent-soft);color:var(--accent-text)} .st.check{background:var(--warn-bg);color:var(--warn-ink)}
+.st.gap{background:var(--bad-bg);color:var(--bad-ink)} .st.unk{background:var(--surface-2);color:var(--ink-2)}
+.sumline{display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:var(--r-sm);background:var(--accent-soft);margin:12px 0 4px;font-size:.875rem}
+.sumline b{font-weight:650}
+.key{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:.75rem;color:var(--ink-3);margin-top:14px}
+.key i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+@media (max-width:560px){.seg .long{display:none}.colorbar{padding:6px 0 8px}}
+
+/* compact buttons inside lists */
+.rrow .primary,.rrow .ghost,.cand .side .primary,.cand .side .ghost{min-height:38px;padding:0 14px;font-size:.8125rem}
+.endbox .mini{background:var(--surface);color:var(--ink)}
+.pr-status{text-align:center;margin:0}
+
+/* ---- print: only the prep sheet ---- */
 @media print{
-  :root{--bg:#fff;--surface:#fff;--surface2:#eee;--ink:#000;--muted:#444;--line:#bbb;--accent:#1f5a2f;--accent-soft:#e6f2e9;--warn-bg:#fdf2d0;--warn-ink:#5a4000;--bad-bg:#f9dcd6;--bad-ink:#7a1f12}
+  :root{--bg:#fff;--surface:#fff;--surface-2:#eee;--ink:#000;--ink-2:#222;--ink-3:#444;--line:#bbb;--line-strong:#999;--accent:#1f5a2f;--accent-text:#1f5a2f;--accent-soft:#e6f2e9;--warn-bg:#fdf2d0;--warn-ink:#5a4000;--bad-bg:#f9dcd6;--bad-ink:#7a1f12}
   body *{visibility:hidden}
   #sheet-card,#sheet-card *{visibility:visible}
   #sheet-card{position:absolute;left:0;top:0;width:100%;border:0;padding:0}
   .noprint{display:none!important}
+  .snote[data-empty]{display:none}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" focusable="false"><symbol id="p-wK" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linejoin="miter" d="M22.5 11.63V6M20 8h5"/><path fill="#fff" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/><path fill="#fff" d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10z"/><path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/></g></symbol><symbol id="p-wQ" viewBox="0 0 45 45"><g fill="#fff" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0m16.5-4.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0M41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0M16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0M33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0"/><path stroke-linecap="butt" d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14z"/><path stroke-linecap="butt" d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"/><path fill="none" d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0"/></g></symbol><symbol id="p-wR" viewBox="0 0 45 45"><g fill="#fff" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linecap="butt" d="M9 39h27v-3H9zm3-3v-4h21v4zm-1-22V9h4v2h5V9h5v2h5V9h4v5"/><path d="m34 14-3 3H14l-3-3"/><path stroke-linecap="butt" stroke-linejoin="miter" d="M31 17v12.5H14V17"/><path d="m31 29.5 1.5 2.5h-20l1.5-2.5"/><path fill="none" stroke-linejoin="miter" d="M11 14h23"/></g></symbol><symbol id="p-wB" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g fill="#fff" stroke-linecap="butt"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.94 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"/></g><path stroke-linejoin="miter" d="M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5"/></g></symbol><symbol id="p-wN" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path fill="#fff" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path fill="#fff" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3"/><path fill="#000" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5"/></g></symbol><symbol id="p-wP" viewBox="0 0 45 45"><path fill="#fff" stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/></symbol><symbol id="p-bK" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linejoin="miter" d="M22.5 11.6V6"/><path fill="#000" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/><path fill="#000" d="M11.5 37a22.3 22.3 0 0 0 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10z"/><path stroke-linejoin="miter" d="M20 8h5"/><path stroke="#ececec" d="M32 29.5s8.5-4 6-9.7C34.1 14 25 18 22.5 24.6v2.1-2.1C20 18 9.9 14 7 19.9c-2.5 5.6 4.8 9 4.8 9"/><path stroke="#ececec" d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/></g></symbol><symbol id="p-bQ" viewBox="0 0 45 45"><g fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g stroke="none"><circle cx="6" cy="12" r="2.75"/><circle cx="14" cy="9" r="2.75"/><circle cx="22.5" cy="8" r="2.75"/><circle cx="31" cy="9" r="2.75"/><circle cx="39" cy="12" r="2.75"/></g><path stroke-linecap="butt" d="M9 26c8.5-1.5 21-1.5 27 0l2.5-12.5L31 25l-.3-14.1-5.2 13.6-3-14.5-3 14.5-5.2-13.6L14 25 6.5 13.5z"/><path stroke-linecap="butt" d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"/><path fill="none" stroke-linecap="butt" d="M11 38.5a35 35 1 0 0 23 0"/><path fill="none" stroke="#ececec" d="M11 29a35 35 1 0 1 23 0m-21.5 2.5h20m-21 3a35 35 1 0 0 22 0m-23 3a35 35 1 0 0 24 0"/></g></symbol><symbol id="p-bR" viewBox="0 0 45 45"><g fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linecap="butt" d="M9 39h27v-3H9zm3.5-7 1.5-2.5h17l1.5 2.5zm-.5 4v-4h21v4z"/><path stroke-linecap="butt" stroke-linejoin="miter" d="M14 29.5v-13h17v13z"/><path stroke-linecap="butt" d="M14 16.5 11 14h23l-3 2.5zM11 14V9h4v2h5V9h5v2h5V9h4v5z"/><path fill="none" stroke="#ececec" stroke-linejoin="miter" stroke-width="1" d="M12 35.5h21m-20-4h19m-18-2h17m-17-13h17M11 14h23"/></g></symbol><symbol id="p-bB" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g fill="#000" stroke-linecap="butt"><path d="M9 36c3.4-1 10.1.4 13.5-2 3.4 2.4 10.1 1 13.5 2 0 0 1.6.5 3 2-.7 1-1.6 1-3 .5-3.4-1-10.1.5-13.5-1-3.4 1.5-10.1 0-13.5 1-1.4.5-2.3.5-3-.5 1.4-2 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"/></g><path stroke="#ececec" stroke-linejoin="miter" d="M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5"/></g></symbol><symbol id="p-bN" viewBox="0 0 45 45"><g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path fill="#000" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path fill="#000" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-1-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-2 2.5-3c1 0 1 3 1 3"/><path fill="#ececec" stroke="#ececec" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.43-9.75a.5 1.5 30 1 1-.86-.5.5 1.5 30 1 1 .86.5"/><path fill="#ececec" stroke="none" d="m24.55 10.4-.45 1.45.5.15c3.15 1 5.65 2.49 7.9 6.75S35.75 29.06 35.25 39l-.05.5h2.25l.05-.5c.5-10.06-.88-16.85-3.25-21.34s-5.79-6.64-9.19-7.16z"/></g></symbol><symbol id="p-bP" viewBox="0 0 45 45"><path stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9a4 4 0 0 0-3.22 6.38 6.48 6.48 0 0 0-.87 10.65c-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47a6.46 6.46 0 0 0-.87-10.65A4.01 4.01 0 0 0 22.5 9z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol><symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></symbol><symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></symbol><symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol><symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol><symbol id="i-skip-b" viewBox="0 0 24 24"><path d="M19 5L9 12l10 7V5zM5 5v14"/></symbol><symbol id="i-flip" viewBox="0 0 24 24"><path d="M8 4v16M8 4L4.5 7.5M8 4l3.5 3.5M16 20V4M16 20l-3.5-3.5M16 20l3.5-3.5"/></symbol><symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6V16h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol><symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3z"/></symbol><symbol id="i-printer" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6h-3M7 14h10v7H7z"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8V4z"/></symbol><symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol><symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol><symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol><symbol id="i-restart" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5"/></symbol></svg>
 <div class="wrap">
   <header class="top">
-    <div class="brand">Chess <span>Scout</span></div>
+    <div class="brand"><span class="mark"><svg viewBox="0 0 45 45" aria-hidden="true"><use href="#p-wN"/></svg></span>Chess Scout</div>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      <button role="tab" id="tab-find" aria-selected="true" aria-controls="view-find">Find player</button>
-      <button role="tab" id="tab-scout" aria-selected="false" aria-controls="view-scout">Scout</button>
-      <button role="tab" id="tab-tour" aria-selected="false" aria-controls="view-tour">Tournament</button>
+      <button role="tab" id="tab-find" aria-selected="true" aria-controls="view-find"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span>Find player</span></button>
+      <button role="tab" id="tab-scout" aria-selected="false" aria-controls="view-scout"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg><span>Scout</span></button>
+      <button role="tab" id="tab-tour" aria-selected="false" aria-controls="view-tour"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span>Tournament</span></button>
     </nav>
   </header>
 
   <!-- FIND -->
   <section id="view-find" role="tabpanel" aria-labelledby="tab-find">
-    <h2>Find your opponent's accounts</h2>
-    <p class="lead">Enter what you know. The tool checks hundreds of likely usernames and public profiles on Chess.com and Lichess, tries every username it finds on the other site too, and ranks the matches. You choose the right one.</p>
-    <form id="find-form" class="card" autocomplete="off">
-      <div class="grid g2">
+    <h2>Find your opponent</h2>
+    <p class="lead">Enter a name and anything else you know. Chess Scout checks likely usernames on Chess.com and Lichess and ranks the matches. You confirm the right one.</p>
+    <form id="find-form" class="card narrow" autocomplete="off">
+      <div class="name-row">
         <div><label for="f-name">Opponent's full name</label><input id="f-name" type="text" placeholder="e.g. Saad Khan" required></div>
-        <div><label for="f-cc">Country code <small>(optional)</small></label><input id="f-cc" type="text" maxlength="2" placeholder="e.g. PK"></div>
-        <div><label for="f-rmin">Rating from <small>(optional)</small></label><input id="f-rmin" type="number" min="0" max="3500" placeholder="e.g. 1200"></div>
-        <div><label for="f-rmax">Rating to <small>(optional)</small></label><input id="f-rmax" type="number" min="0" max="3500" placeholder="e.g. 2000"></div>
-        <div style="grid-column:1/-1"><label for="f-place">City or place <small>(optional: matched against the location on their profile)</small></label><input id="f-place" type="text" placeholder="e.g. Karachi"></div>
-        <div style="grid-column:1/-1"><label for="f-hint">Username hint <small>(optional: a nickname, number or word you think they use)</small></label><input id="f-hint" type="text" placeholder="e.g. 999, king, pk"></div>
+        <button class="primary" id="f-go" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Find accounts</button>
       </div>
-      <div class="actions">
-        <button class="primary" id="f-go" type="submit">Find accounts</button>
-        <label style="margin:0;font-weight:500;display:flex;gap:6px;align-items:center"><input type="checkbox" id="f-deep" checked> Deep search <small>(about 500 variants, ~20 seconds)</small></label>
-        <span class="status" id="f-status" role="status" aria-live="polite"></span>
-      </div>
+      <details class="more" id="f-more">
+        <summary>Narrow the search<span class="sum" id="f-sum">optional</span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        <div class="grid g2" style="margin-top:10px">
+          <div><label for="f-cc">Country code <small>(two letters)</small></label><input id="f-cc" type="text" maxlength="2" placeholder="PK" autocapitalize="characters"></div>
+          <div><label for="f-place">City or place <small>(matched to their profile)</small></label><input id="f-place" type="text" placeholder="Karachi"></div>
+          <div><label for="f-rmin">Rating from</label><input id="f-rmin" type="number" inputmode="numeric" min="0" max="3500" placeholder="1200"></div>
+          <div><label for="f-rmax">Rating to</label><input id="f-rmax" type="number" inputmode="numeric" min="0" max="3500" placeholder="2000"></div>
+          <div style="grid-column:1/-1"><label for="f-hint">Username hint <small>(a nickname, number or word you think they use)</small></label><input id="f-hint" type="text" placeholder="999, king, pk"></div>
+        </div>
+        <div class="checks" style="margin-top:12px"><label><input type="checkbox" id="f-deep" checked> Deep search: also try about 500 number and nickname variants (takes about a minute)</label></div>
+      </details>
+      <div style="margin-top:14px"><div class="prog" id="f-prog" hidden><i></i></div><p class="status" id="f-status" role="status" aria-live="polite"></p></div>
     </form>
-    <div class="card" id="club-card">
-      <h3>Search inside a club or team</h3>
-      <p class="lead" style="margin:0 0 12px">Use this when the username looks nothing like the name. Many players join their university's club on Chess.com or team on Lichess, and their profile name gives them away. It uses the name, country and rating from the form above.</p>
-      <div class="grid g2">
-        <div><label for="c-text">Club or team name</label><input id="c-text" type="text" placeholder="e.g. Karachi, Iqra University"></div>
-        <div><label for="c-link">Or paste a club / team link</label><input id="c-link" type="text" placeholder="chess.com/club/... or lichess.org/team/..."></div>
+    <p class="legend narrow" style="margin:-4px 0 18px">Already have a username? <button class="linkbtn" id="skip-to-scout" type="button">Go straight to Scout</button></p>
+
+    <details class="card narrow" id="club-card">
+      <summary>Search inside a club or team<svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+      <div class="fold">
+        <p class="lead" style="margin:0 0 14px">Use this when the username looks nothing like the name. Many players join their university's club on Chess.com or team on Lichess, and their profile name gives them away. It uses the name, country and rating above.</p>
+        <div class="grid g2">
+          <div><label for="c-text">Club or team name</label><input id="c-text" type="text" placeholder="Karachi, Iqra University"></div>
+          <div><label for="c-link">Or paste a club or team link</label><input id="c-link" type="text" placeholder="chess.com/club/… or lichess.org/team/…"></div>
+        </div>
+        <div class="actions">
+          <button class="ghost" id="c-find" type="button">Find clubs and teams</button>
+          <button class="ghost" id="c-scan-link" type="button">Scan pasted link</button>
+          <span class="status" id="c-status" role="status" aria-live="polite"></span>
+        </div>
+        <div id="c-list"></div>
       </div>
-      <div class="actions">
-        <button class="ghost" id="c-find" type="button">Find clubs and teams</button>
-        <button class="ghost" id="c-scan-link" type="button">Scan pasted link</button>
-        <span class="status" id="c-status" role="status" aria-live="polite"></span>
+    </details>
+
+    <div id="f-results">
+      <div class="empty narrow">
+        <h3>How it works</h3>
+        <ol class="steps">
+          <li>Enter the opponent's name. Add a country or rating range if you know them.</li>
+          <li>Pick the account that looks right on Chess.com, Lichess or both.</li>
+          <li>Scout builds the report: their openings, a prep sheet, and a practice drill against their real moves.</li>
+        </ol>
       </div>
-      <div id="c-list"></div>
-    </div>
-    <div id="f-results"></div>
-    <div class="card">
-      <h3>Already know a username?</h3>
-      <p class="lead" style="margin:0 0 10px">Skip the search and go straight to the report.</p>
-      <button class="ghost" id="skip-to-scout" type="button">Enter usernames directly</button>
     </div>
   </section>
 
   <!-- TOURNAMENT -->
   <section id="view-tour" role="tabpanel" aria-labelledby="tab-tour" hidden>
     <h2>Tournament players</h2>
-    <p class="lead">Open the tournament on chess-results.com (the starting rank list or the pairings), select the table, copy it and paste it below. This page never contacts Chess-Results. It only reads what you paste.</p>
-    <div class="card">
+    <p class="lead">Open the tournament on chess-results.com, select the starting rank list or the pairings, copy the table and paste it here. This page never contacts Chess-Results; it only reads what you paste.</p>
+    <div class="card narrow">
       <label for="t-paste">Pasted table</label>
       <textarea id="t-paste" rows="6" placeholder="Paste the players or pairings table here"></textarea>
       <div class="actions">
@@ -300,55 +454,67 @@ footer{color:var(--muted);font-size:.82rem;margin-top:24px}
   <!-- SCOUT -->
   <section id="view-scout" role="tabpanel" aria-labelledby="tab-scout" hidden>
     <h2>Scout an opponent</h2>
-    <p class="lead">Give one or both usernames. Games from both sites are combined into one report.</p>
-    <form id="scout-form" class="card" autocomplete="off">
+    <p class="lead">Enter one or both usernames. Games from both sites are combined into one report.</p>
+    <form id="scout-form" class="card narrow" autocomplete="off">
       <div class="grid g2">
-        <div><label for="s-cc">Chess.com username <small>(or profile link)</small></label><input id="s-cc" type="text" placeholder="username"></div>
-        <div><label for="s-li">Lichess username <small>(or profile link)</small></label><input id="s-li" type="text" placeholder="username"></div>
-        <div><label for="s-months">Look back</label>
-          <select id="s-months"><option value="1">1 month</option><option value="3">3 months</option><option value="6" selected>6 months</option><option value="12">12 months</option><option value="24">24 months</option><option value="0">All time</option></select></div>
-        <div><label for="s-max">Max games per site</label>
-          <select id="s-max"><option value="300">300</option><option value="1000" selected>1,000</option><option value="3000">3,000</option></select></div>
+        <div><label for="s-cc">Chess.com username <small>(or profile link)</small></label><input id="s-cc" type="text" placeholder="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+        <div><label for="s-li">Lichess username <small>(or profile link)</small></label><input id="s-li" type="text" placeholder="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
       </div>
-      <div style="margin-top:12px">
-        <label for="m-cc">Your own accounts <small>(optional: lets the prep sheet check each line against what you actually play)</small></label>
-        <div class="grid g2">
-          <input id="m-cc" type="text" placeholder="Your Chess.com username" aria-label="Your Chess.com username">
-          <input id="m-li" type="text" placeholder="Your Lichess username" aria-label="Your Lichess username">
+      <details class="more" id="s-more">
+        <summary>Options<span class="sum" id="s-sum"></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        <div class="grid g2" style="margin-top:10px">
+          <div><label for="s-months">Look back</label>
+            <select id="s-months"><option value="1">1 month</option><option value="3">3 months</option><option value="6" selected>6 months</option><option value="12">12 months</option><option value="24">24 months</option><option value="0">All time</option></select></div>
+          <div><label for="s-max">Max games per site</label>
+            <select id="s-max"><option value="300">300</option><option value="1000" selected>1,000</option><option value="3000">3,000</option></select></div>
         </div>
-      </div>
-      <div style="margin-top:12px">
-        <label>Time controls</label>
-        <div class="checks">
-          <label><input type="checkbox" name="tc" value="bullet"> Bullet</label>
-          <label><input type="checkbox" name="tc" value="blitz" checked> Blitz</label>
-          <label><input type="checkbox" name="tc" value="rapid" checked> Rapid</label>
-          <label><input type="checkbox" name="tc" value="classical" checked> Classical / Daily</label>
-          <label style="margin-left:auto"><input type="checkbox" id="s-rated"> Rated games only</label>
+        <div style="margin-top:14px">
+          <label>Time controls</label>
+          <div class="checks">
+            <label><input type="checkbox" name="tc" value="bullet"> Bullet</label>
+            <label><input type="checkbox" name="tc" value="blitz" checked> Blitz</label>
+            <label><input type="checkbox" name="tc" value="rapid" checked> Rapid</label>
+            <label><input type="checkbox" name="tc" value="classical" checked> Classical / Daily</label>
+            <label><input type="checkbox" id="s-rated"> Rated games only</label>
+          </div>
         </div>
-      </div>
+        <div style="margin-top:14px">
+          <label for="m-cc">Your own accounts <small>(optional: the prep sheet checks each line against what you actually play)</small></label>
+          <div class="grid g2">
+            <input id="m-cc" type="text" placeholder="Your Chess.com username" aria-label="Your Chess.com username" autocapitalize="none" autocorrect="off" spellcheck="false">
+            <input id="m-li" type="text" placeholder="Your Lichess username" aria-label="Your Lichess username" autocapitalize="none" autocorrect="off" spellcheck="false">
+          </div>
+        </div>
+      </details>
       <div class="actions">
-        <button class="primary" id="s-go" type="submit">Build report</button>
+        <button class="primary" id="s-go" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>Build report</button>
         <span class="status" id="s-status" role="status" aria-live="polite"></span>
       </div>
+      <div class="prog" id="s-prog" hidden style="margin-top:12px"><i></i></div>
       <div class="saved" id="saved" hidden></div>
     </form>
     <div id="report"></div>
   </section>
 
-  <footer><b>Version 7</b> (summary, practice with engine, tournament list, prep sheet, club scan, board). If you do not see the board after you build a report, press Ctrl+Shift+R to reload. <br>Uses public game data from the Chess.com and Lichess APIs, and Lichess's cloud engine analysis. For pre-game preparation only. Outside help during an over-the-board game is not allowed under FIDE rules.</footer>
+  <footer>
+    <span id="ver">Chess Scout 8</span>. Uses public game data from Chess.com and Lichess, and Lichess cloud analysis, with Stockfish running in your browser. For preparation before the game only: outside help during an over-the-board game is not allowed under FIDE rules.
+    Piece set by Colin M. L. Burnett (GPLv2+). <a href="https://github.com/sirajzaman54-art/chess-scout" target="_blank" rel="noopener">Source</a>
+  </footer>
 </div>
 
 <div class="selbar" id="selbar" hidden>
   <span id="selbar-text"></span>
-  <button class="primary" id="selbar-go" type="button">Scout selected</button>
-  <button class="ghost" id="selbar-clear" type="button">Clear</button>
+  <div class="btns">
+    <button class="ghost" id="selbar-clear" type="button">Clear</button>
+    <button class="primary" id="selbar-go" type="button">Scout selected<svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg></button>
+  </div>
 </div>
 
 <script>
 'use strict';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const ic = (name, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
@@ -573,7 +739,7 @@ function updateSelbar() {
   $$('.cand').forEach(el => el.classList.toggle('sel', sel[el.dataset.site] === el.dataset.user));
   $$('.cand button[data-pick]').forEach(b => {
     const on = sel[b.dataset.site] === b.dataset.user;
-    b.textContent = on ? 'Selected ✓' : 'This is them';
+    b.innerHTML = on ? ic('check') + 'Selected' : 'This is them';
     b.className = on ? 'primary' : 'ghost';
   });
 }
@@ -743,7 +909,8 @@ $('#find-form').onsubmit = async e => {
   if (!q.tokens.length) return;
   store.set('find', { name, cc: q.cc, rmin: q.rmin, rmax: q.rmax, hint: q.hint, place: q.place, deep: q.deep });
   sel.cc = sel.li = null; FIND.all = []; FIND.q = q;
-  const btn = $('#f-go'), st = $('#f-status');
+  const btn = $('#f-go'), st = $('#f-status'), fprog = $('#f-prog');
+  fprog.hidden = false; fprog.classList.add('ind'); fprog.firstElementChild.style.transform = '';
   btn.disabled = true; $('#f-results').innerHTML = ''; updateSelbar();
   const errs = [];
   try {
@@ -756,7 +923,7 @@ $('#find-form').onsubmit = async e => {
     let L = await liUsers(liIds).catch(err => { errs.push('Lichess: ' + err.message); return []; });
     // 2. Chess.com: guesses + every username found on Lichess
     const ccList = [...new Set([...G.core, ...G.numeric, ...L.map(u => u.username)].map(x => x.toLowerCase()))];
-    const C = await ccFind(ccList, n => { st.textContent = `Chess.com: checked ${n} of ${ccList.length} usernames…`; }).catch(err => { errs.push('Chess.com: ' + err.message); return []; });
+    const C = await ccFind(ccList, n => { st.textContent = `Chess.com: checked ${n} of ${ccList.length} usernames…`; fprog.classList.remove('ind'); fprog.firstElementChild.style.transform = `scaleX(${(n / ccList.length).toFixed(3)})`; }).catch(err => { errs.push('Chess.com: ' + err.message); return []; });
     // 3. Lichess again for usernames that exist on Chess.com
     const have = new Set(L.map(u => u.username.toLowerCase()));
     const extra = C.map(c => c.username.toLowerCase()).filter(u => !have.has(u) && !liIds.has(u));
@@ -767,7 +934,7 @@ $('#find-form').onsubmit = async e => {
     st.textContent = errs.length ? errs.join(' ') : 'Done.';
   } catch (err) {
     st.textContent = 'Something went wrong: ' + err.message;
-  } finally { btn.disabled = false; }
+  } finally { btn.disabled = false; fprog.hidden = true; fprog.classList.remove('ind'); }
 };
 
 /* ---------- SCOUT: fetch + normalise ---------- */
@@ -988,8 +1155,8 @@ function boardSvg(pos, flip, arrows, extra = '') {
   const b = pos.ch.board();
   for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
     const p = b[i][j]; if (!p) continue;
-    const [x, y] = sqXY(FILES[j] + (8 - i), flip), white = p.color === 'w';
-    s += `<text x="${x + 50}" y="${y + 76}" font-size="84" text-anchor="middle" font-family="'Segoe UI Symbol','Noto Sans Symbols 2','DejaVu Sans',sans-serif" fill="${white ? '#fff' : '#1b1b1b'}" stroke="${white ? '#1b1b1b' : '#e8e8e0'}" stroke-width="${white ? 2.5 : 1.2}" paint-order="stroke">${GLYPH[p.type]}&#xFE0E;</text>`;
+    const [x, y] = sqXY(FILES[j] + (8 - i), flip);
+    s += `<use href="#p-${p.color}${p.type.toUpperCase()}" x="${x}" y="${y}" width="100" height="100"/>`;
   }
   s += extra;
   s += arrows.map(a => arrowSvg(a.from, a.to, a.w, a.color, a.op, flip)).join('');
@@ -1117,19 +1284,22 @@ function render() {
     ${S.staleNote ? `<div class="notice warn">${esc(S.staleNote)}</div>` : ''}
     ${g.length < 30 ? `<div class="notice warn">Only ${g.length} games found. Treat percentages as hints, not patterns. Widen the look-back period or add the other site if they use both.</div>` : ''}
     <div class="card">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <h2 style="margin-right:auto">${esc(S.label)}</h2>
-        <input id="r-label" type="text" placeholder="Label, e.g. Round 3 · Board 2" aria-label="Label for this opponent" style="width:15rem;max-width:100%" class="noprint">
-        <button class="ghost" id="r-copy" type="button">Copy brief</button>
-        <button class="ghost" id="r-save" type="button">Save opponent</button>
+      <div class="rhead">
+        <h2>${esc(S.label)}</h2>
+        <div class="rtools noprint">
+          <input id="r-label" type="text" placeholder="Label, e.g. Round 3, board 2" aria-label="Label for this opponent">
+          <button class="ghost" id="r-save" type="button">${ic('bookmark')}Save</button>
+          <button class="ghost" id="r-link" type="button" title="Copy a link that opens this report">${ic('link')}Copy link</button>
+          <button class="ghost" id="r-copy" type="button">${ic('copy')}Copy brief</button>
+        </div>
       </div>
-      <div class="summary">
-        <div class="stat"><b>${g.length}</b><span>games analysed</span></div>
-        <div class="stat"><b>${bySite('cc')} / ${bySite('li')}</b><span>Chess.com / Lichess</span></div>
-        <div class="stat"><b>${rec.w}-${rec.d}-${rec.l}</b><span>W-D-L (${pct(rec.w + rec.d / 2, g.length)}% score)</span></div>
-        ${T.ratings.slice(0, 2).map(r => `<div class="stat"><b>${r.r}</b><span>${r.site === 'cc' ? 'Chess.com' : 'Lichess'} ${r.tc}</span></div>`).join('')}
-      </div>
-      <div class="legend">${esc(range)}</div>
+      <p class="facts">
+        <span><b>${g.length}</b> games</span>
+        <span><b>${rec.w}-${rec.d}-${rec.l}</b> record, ${pct(rec.w + rec.d / 2, g.length)}% score</span>
+        <span>Chess.com <b>${bySite('cc')}</b> · Lichess <b>${bySite('li')}</b></span>
+        ${T.ratings.slice(0, 3).map(r => `<span>${r.site === 'cc' ? 'Chess.com' : 'Lichess'} ${r.tc} <b>${r.r}</b></span>`).join('')}
+        <span>${esc(range.replace(' to ', ' to '))}</span>
+      </p>
     </div>
 
     <div class="stick noprint">
@@ -1144,8 +1314,8 @@ function render() {
       <div class="colorbar" id="colorbar">
         <span>Your colour</span>
         <div class="seg" role="group" aria-label="Your colour">
-          <button type="button" data-color="white" aria-pressed="true">I'm Black · they play White</button>
-          <button type="button" data-color="black" aria-pressed="false">I'm White · they play Black</button>
+          <button type="button" data-color="white" aria-pressed="true">I'm Black<span class="long"> · they play White</span></button>
+          <button type="button" data-color="black" aria-pressed="false">I'm White<span class="long"> · they play Black</span></button>
         </div>
       </div>
     </div>
@@ -1166,16 +1336,16 @@ function render() {
     <div class="card"><h3>Habits and tendencies</h3>
       ${T.insights.length ? T.insights.map(i => `<div class="insight">${i}</div>`).join('') : '<p class="status">Not enough games to spot clear habits yet.</p>'}
       <div class="tend" style="margin-top:10px">
-        <div class="tbox"><b>Recent form</b>
+        <div class="tbox"><h4>Recent form</h4>
           <div class="form">${T.form.map(r => `<span class="${r}">${r.toUpperCase()}</span>`).join('')}</div>
           <div class="legend" style="margin:0">Newest first. ${T.seriesLabel ? `Rating trend, ${esc(T.seriesLabel)}:` : ''}</div>${sparkline(T.series)}</div>
-        <div class="tbox"><b>How they lose</b> <span class="legend">(${T.loss.n} losses)</span>
+        <div class="tbox"><h4>How they lose <span class="legend" style="font-weight:400">(${T.loss.n} losses)</span></h4>
           ${hbar([{ v: T.loss.resign, c: 'var(--draw)', l: 'Resign' }, { v: T.loss.time, c: '#e0a43b', l: 'Time' }, { v: T.loss.mate, c: 'var(--loss)', l: 'Mated' }, { v: Math.max(0, 100 - T.loss.resign - T.loss.time - T.loss.mate), c: 'var(--surface2)', l: 'Other' }])}
           <div class="legend">Resign ${T.loss.resign}% · On time ${T.loss.time}% · Checkmated ${T.loss.mate}%</div>
-          <b style="display:block;margin-top:10px">How they win</b> <span class="legend">(${T.win.n} wins)</span>
+          <h4 style="margin-top:14px">How they win <span class="legend" style="font-weight:400">(${T.win.n} wins)</span></h4>
           ${hbar([{ v: T.win.resign, c: 'var(--draw)', l: 'Opp resigned' }, { v: T.win.time, c: '#e0a43b', l: 'Opp on time' }, { v: T.win.mate, c: 'var(--win)', l: 'Mate' }, { v: Math.max(0, 100 - T.win.resign - T.win.time - T.win.mate), c: 'var(--surface2)', l: 'Other' }])}
           <div class="legend">Opp resigned ${T.win.resign}% · Opp flagged ${T.win.time}% · Mate ${T.win.mate}%</div></div>
-        <div class="tbox"><b>Game profile</b>
+        <div class="tbox"><h4>Game profile</h4>
           <ul><li>Median game length: <b>${T.medLen}</b> moves (${T.short}% under 20, ${T.long}% over 50)</li>
           <li>Score as White: <b>${T.scoreWhite}%</b> (${T.nWhite} games)</li><li>Score as Black: <b>${T.scoreBlack}%</b> (${T.nBlack} games)</li>
           ${T.vsHigher.n ? `<li>Vs higher rated: <b>${T.vsHigher.sc}%</b> (${T.vsHigher.n})</li>` : ''}${T.vsSimilar.n ? `<li>Vs similar rated: <b>${T.vsSimilar.sc}%</b> (${T.vsSimilar.n})</li>` : ''}${T.vsLower.n ? `<li>Vs lower rated: <b>${T.vsLower.sc}%</b> (${T.vsLower.n})</li>` : ''}</ul>
@@ -1202,8 +1372,10 @@ function render() {
     </div>`;
   $$('#subtabs button').forEach(b => b.onclick = () => showPanel(b.dataset.panel));
   $$('#colorbar button').forEach(b => b.onclick = () => { S.color = b.dataset.color; syncColorBar(); renderPlan(); renderExplorer(); renderSheet(); renderSummary(); renderPractice(true); });
-  $('#r-copy').onclick = async e => { try { await navigator.clipboard.writeText(briefText()); e.target.textContent = 'Copied ✓'; } catch { e.target.textContent = 'Copy failed'; } setTimeout(() => e.target.textContent = 'Copy brief', 1800); };
-  $('#r-save').onclick = e => { saveOpponent(); e.target.textContent = 'Saved ✓'; };
+  const flash = (btn, ok, idle) => { btn.innerHTML = ic(ok ? 'check' : 'x') + (ok ? 'Done' : 'Failed'); setTimeout(() => { btn.innerHTML = idle; }, 1600); };
+  $('#r-copy').onclick = async e => { const b = e.currentTarget, idle = b.innerHTML; try { await navigator.clipboard.writeText(briefText()); flash(b, true, idle); } catch { flash(b, false, idle); } };
+  $('#r-link').onclick = async e => { const b = e.currentTarget, idle = b.innerHTML; try { await navigator.clipboard.writeText(shareLink()); flash(b, true, idle); } catch { flash(b, false, idle); } };
+  $('#r-save').onclick = e => { saveOpponent(); flash(e.currentTarget, true, e.currentTarget.innerHTML); };
   S.panel = 'summary';
   renderSummary(); renderPlan(); renderExplorer(); renderSheet(); renderPractice(true);
 }
@@ -1343,7 +1515,7 @@ async function renderSheet() {
   const el = $('#sheet-card'); if (!el || !S.A) return;
   const token = ++sheetToken, c = S.color, my = c === 'white' ? 'black' : 'white', root = S.A.trees[c];
   const myName = my === 'white' ? 'White' : 'Black';
-  const head = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="margin:0;margin-right:auto">Prep sheet: you have ${myName}</h3><button class="ghost noprint" id="sheet-print" type="button">Print / save as PDF</button></div>`;
+  const head = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="margin:0;margin-right:auto">Prep sheet: you have ${myName}</h3><button class="ghost noprint" id="sheet-print" type="button">${ic('printer')}Print or save as PDF</button></div>`;
   if (!root.n) { el.innerHTML = head + `<p class="status">No games with ${c === 'white' ? 'White' : 'Black'} in this sample.</p>`; return; }
   const note = ME.state === 'ready' ? `Checked against ${ME.n} of your own games.`
     : ME.state === 'loading' ? 'Loading your own games…'
@@ -1380,7 +1552,7 @@ function renderSummary() {
   const myName = my === 'white' ? 'White' : 'Black', theirName = c === 'white' ? 'White' : 'Black';
   if (!root.n) { el.innerHTML = `<h3>Summary</h3><p class="status">No games with ${theirName} in this sample, so there is nothing to prepare for as ${myName}. Try the other colour.</p>`; return; }
   const open = (p, label = 'Show on board') => `<button class="mini" type="button" data-open="${esc(p.join(' '))}">${label}</button>`;
-  const prac = p => `<button class="mini" type="button" data-practice="${esc(p.join(' '))}">Practice</button>`;
+  const prac = p => `<button class="mini" type="button" data-practice="${esc(p.join(' '))}">${ic('play')}Practice</button>`;
 
   const expect = [];
   if (c === 'white') {
@@ -1417,14 +1589,14 @@ function renderSummary() {
   const newest = S.games[0]?.t ? new Date(S.games[0].t).toISOString().slice(0, 10) : '';
   el.innerHTML = `<h3>Before the round: you have ${myName}</h3>
     <p class="lead" style="margin:0 0 4px">Based on ${root.n} of their games as ${theirName}${newest ? `, newest ${newest}` : ''}. Practice puts you on the board against their real moves.</p>
-    <div class="sumgrid">
+    <div class="sumcols">
       <div class="sbox"><h4>What to expect</h4><ul>${expect.map(e => `<li>${e}</li>`).join('') || '<li>Not enough games to say.</li>'}</ul></div>
       <div class="sbox"><h4>Study first</h4>${study}</div>
       <div class="sbox"><h4>Steer toward (they struggle)</h4>${steer.length ? `<ul>${steer.map(spotLi).join('')}</ul>` : '<p class="status">No clear weak line yet.</p>'}</div>
       <div class="sbox"><h4>Be ready for (they do well)</h4>${beware.length ? `<ul>${beware.map(spotLi).join('')}</ul>` : '<p class="status">No standout strength yet.</p>'}</div>
       ${T.insights.length ? `<div class="sbox" style="grid-column:1/-1"><h4>Habits</h4><ul>${T.insights.slice(0, 3).map(i => `<li>${i}</li>`).join('')}</ul></div>` : ''}
     </div>
-    <div class="cta"><button class="primary" type="button" data-goto="practice">Start practice</button><button class="ghost" type="button" data-goto="sheet">Open prep sheet</button><button class="ghost" type="button" data-goto="explorer">Explore their moves</button></div>`;
+    <div class="cta"><button class="primary" type="button" data-goto="practice">${ic('play')}Start practice</button><button class="ghost" type="button" data-goto="sheet">Open prep sheet</button><button class="ghost" type="button" data-goto="explorer">Explore their moves</button></div>`;
   $$('#summary-card [data-open]').forEach(b => b.onclick = () => openLine(c, b.dataset.open.split(' ')));
   $$('#summary-card [data-practice]').forEach(b => b.onclick = () => startPracticeAt(b.dataset.practice.split(' ')));
   $$('#summary-card [data-goto]').forEach(b => b.onclick = () => showPanel(b.dataset.goto));
@@ -1477,25 +1649,30 @@ function renderPractice(reset) {
   const autoRating = S.T?.ratings?.[0]?.r;
   el.innerHTML = `<h3>Practice: you are ${myName}, they play their usual ${c === 'white' ? 'White' : 'Black'}</h3>
     <p class="lead" style="margin:0 0 4px">They answer with moves from their real games. After each of your moves the engine gives a verdict. When you or they leave their book, the engine plays for them so you can keep going into the middlegame.</p>
-    <div class="prbar noprint">
-      <div><label for="pr-start">Start from</label><select id="pr-start">${opts}</select></div>
-      <div><label for="pr-mode">In their book, they play</label><select id="pr-mode"><option value="sample" ${PR.mode === 'sample' ? 'selected' : ''}>Like in their games (varies)</option><option value="main" ${PR.mode === 'main' ? 'selected' : ''}>Their usual move every time</option></select></div>
-      <div><label for="pr-strength">After their book, engine strength</label><select id="pr-strength">
-        <option value="auto" ${PR.strength === 'auto' ? 'selected' : ''}>Match their rating${autoRating ? ` (about ${autoRating})` : ''}</option>
-        ${Object.entries(STRENGTHS).map(([k, [n]]) => `<option value="${k}" ${PR.strength === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
-      <button class="primary" id="pr-go" type="button">${PR.started ? 'Restart' : 'Start drill'}</button>
-      ${PR.started && !PR.over ? '<button class="ghost" id="pr-stop" type="button">Stop</button>' : ''}
+    <div class="actions noprint" style="margin-top:12px">
+      <button class="primary" id="pr-go" type="button">${PR.started ? ic('restart') + 'Restart' : ic('play') + 'Start drill'}</button>
+      ${PR.started && !PR.over ? `<button class="ghost" id="pr-stop" type="button">${ic('stop')}Stop</button>` : ''}
     </div>
+    <details class="more noprint" id="pr-more" ${PR.started ? '' : 'open'}>
+      <summary>Drill settings<span class="sum">${esc(PR.startIdx === '' ? 'from move 1' : 'from a common line')} · ${PR.mode === 'main' ? 'their usual move' : 'like their games'} · engine ${esc(strengthText(PR.strength))}</span>${ic('chev', 'chev')}</summary>
+      <div class="prbar">
+        <div><label for="pr-start">Start from</label><select id="pr-start">${opts}</select></div>
+        <div><label for="pr-mode">In their book, they play</label><select id="pr-mode"><option value="sample" ${PR.mode === 'sample' ? 'selected' : ''}>Like in their games (varies)</option><option value="main" ${PR.mode === 'main' ? 'selected' : ''}>Their usual move every time</option></select></div>
+        <div><label for="pr-strength">After their book, engine strength</label><select id="pr-strength">
+          <option value="auto" ${PR.strength === 'auto' ? 'selected' : ''}>Match their rating${autoRating ? ` (about ${autoRating})` : ''}</option>
+          ${Object.entries(STRENGTHS).map(([k, [n]]) => `<option value="${k}" ${PR.strength === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      </div>
+    </details>
     <div class="prgrid">
       <div>
         <div class="boardwrap" id="pr-board">${boardSvg(pos, flip, arrows, extra)}</div>
-        <div class="bctl"><button type="button" id="pr-hint" ${myTurn ? '' : 'disabled'}>Hint</button><button type="button" id="pr-flip">⇅ Flip</button></div>
-        <p class="status" id="pr-status" style="text-align:center;margin:0">${esc(status)}</p>
+        <div class="bctl"><button type="button" id="pr-hint" ${myTurn ? '' : 'disabled'}>${ic('bulb')}Hint</button><button type="button" id="pr-flip">${ic('flip')}Flip</button></div>
+        <p class="status pr-status" id="pr-status">${esc(status)}</p>
       </div>
       <div>
         ${PR.end ? `<div class="endbox"><b>${esc(PR.end.title)}</b>${esc(PR.end.text)}
           ${nMine ? `<div style="margin-top:6px">Your ${nMine} move${nMine === 1 ? '' : 's'}: ${['best', 'good', 'ok', 'inacc', 'bad'].filter(k => t[k]).map(k => `${t[k]} ${VERDICT[k].toLowerCase()}`).join(' · ') || 'no engine verdicts available'}.</div>` : ''}
-          <div class="cta noprint" style="margin-top:8px"><a class="mini" style="text-decoration:none;padding:2px 9px" href="https://lichess.org/analysis/${PR.ch.fen().replace(/ /g, '_')}" target="_blank" rel="noopener">Analyse on Lichess ↗</a></div></div>` : ''}
+          <div class="cta noprint" style="margin-top:10px"><a class="mini" href="https://lichess.org/analysis/${PR.ch.fen().replace(/ /g, '_')}" target="_blank" rel="noopener">Analyse on Lichess${ic('ext')}</a></div></div>` : ''}
         <div class="plog" id="pr-log">${PR.log.length ? PR.log.map(l => l.kind === 'note'
           ? `<div class="pl brk"><span></span><span>${esc(l.text)}</span></div>`
           : `<div class="pl ${l.kind === 'me' ? 'me' : ''}"><span class="mvn">${plyLabel(l.ply)}</span><span><b>${esc(l.san)}</b> ${l.verdict ? `<span class="vd ${l.verdict}">${VERDICT[l.verdict]}</span>` : ''}<span class="legend" style="margin:0">${esc(l.note || '')}</span></span></div>`).join('') : '<p class="status">Moves appear here.</p>'}</div>
@@ -1649,10 +1826,10 @@ function renderExplorer() {
   $('#explorer').innerHTML = `<div class="xgrid">
     <div>${board}
       <div class="bctl">
-        <button type="button" id="b-start" aria-label="Back to start" ${path.length ? '' : 'disabled'}>⏮</button>
-        <button type="button" id="b-back" aria-label="Back one move" ${path.length ? '' : 'disabled'}>◀</button>
-        <button type="button" id="b-fwd" aria-label="Play most common move" ${kids.length ? '' : 'disabled'}>▶</button>
-        <button type="button" id="b-flip" aria-label="Flip board">⇅ Flip</button>
+        <button type="button" id="b-start" aria-label="Back to start" title="Back to start" ${path.length ? '' : 'disabled'}>${ic('skip-b')}</button>
+        <button type="button" id="b-back" aria-label="Back one move" title="Back one move (left arrow)" ${path.length ? '' : 'disabled'}>${ic('arrow-l')}</button>
+        <button type="button" id="b-fwd" aria-label="Play most common move" title="Most common move (right arrow)" ${kids.length ? '' : 'disabled'}>${ic('arrow-r')}</button>
+        <button type="button" id="b-flip" aria-label="Flip board" title="Flip board (F)">${ic('flip')}Flip</button>
       </div>
       <div class="engine" id="engine" hidden></div>
     </div>
@@ -1669,7 +1846,7 @@ function renderExplorer() {
         </button>`).join('')}</div>
       <p class="legend">Bar = share of games. Colours = their wins (green), draws (grey), losses (red). Last figure = their score. Depth limit ${MAXPLY / 2} moves.</p>
       ${games.length ? `<div class="subhead">Their games through this position</div><table><tbody>${games.map(x => `<tr><td>${new Date(x.t).toISOString().slice(0, 10)}</td><td>vs ${esc(x.opp)} <span style="color:var(--muted)">${x.oppRating ?? ''}</span></td><td><span class="res ${x.res}">${{ w: 'W', d: 'D', l: 'L' }[x.res]}</span></td><td><a href="${esc(x.url)}" target="_blank" rel="noopener">Replay</a></td></tr>`).join('')}</tbody></table>` : ''}
-      ${pos?.ok ? `<p class="legend"><a href="https://lichess.org/analysis/${pos.fen.replace(/ /g, '_')}" target="_blank" rel="noopener">Open this position in Lichess analysis ↗</a></p>` : ''}
+      ${pos?.ok ? `<p class="legend"><a href="https://lichess.org/analysis/${pos.fen.replace(/ /g, '_')}" target="_blank" rel="noopener">Open this position in Lichess analysis</a></p>` : ''}
     </div></div>`;
   $$('#explorer .crumbs button').forEach(b => b.onclick = () => { S.path[c] = path.slice(0, +b.dataset.i); renderExplorer(); });
   $$('#explorer .row').forEach(b => b.onclick = () => { S.path[c] = [...path, b.dataset.m]; renderExplorer(); });
@@ -1706,10 +1883,14 @@ function loadSaved() {
   const list = store.get('saved', []), el = $('#saved');
   el.hidden = !list.length;
   el.innerHTML = list.length ? '<span class="status">Saved:</span>' + list.map((s, i) =>
-    `<span class="chipbtn"><button type="button" data-load="${i}">${esc(s.label)}</button><button type="button" data-del="${i}" aria-label="Remove ${esc(s.label)}">×</button></span>`).join('') : '';
+    `<span class="chipbtn"><button type="button" data-load="${i}">${esc(s.label)}</button><button type="button" data-del="${i}" aria-label="Remove ${esc(s.label)}">${ic('x')}</button></span>`).join('') : '';
   $$('#saved [data-load]').forEach(b => b.onclick = () => { const s = list[+b.dataset.load]; $('#s-cc').value = s.cc || ''; $('#s-li').value = s.li || ''; $('#scout-form').requestSubmit(); });
   $$('#saved [data-del]').forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); store.set('saved', list); loadSaved(); });
 }
+const shareLink = () => {
+  const p = new URLSearchParams(); if (S.cc) p.set('cc', S.cc); if (S.li) p.set('li', S.li);
+  return location.origin + location.pathname + '#' + p.toString();
+};
 function saveOpponent() {
   const cc = cleanUser($('#s-cc').value), li = cleanUser($('#s-li').value);
   const list = store.get('saved', []).filter(s => !(s.cc === cc && s.li === li));
@@ -1726,7 +1907,10 @@ $('#scout-form').onsubmit = async e => {
   const tcs = new Set($$('input[name=tc]:checked').map(x => x.value));
   if (!tcs.size) { st.textContent = 'Pick at least one time control.'; return; }
   const o = { months: +$('#s-months').value, max: +$('#s-max').value, rated: $('#s-rated').checked, tcs };
-  btn.disabled = true; $('#report').innerHTML = '';
+  btn.disabled = true;
+  $('#report').innerHTML = `<div class="card" aria-hidden="true"><span class="sk" style="width:36%;height:26px"></span><span class="sk" style="width:78%;margin-top:16px"></span><span class="sk" style="width:52%;margin-top:8px"></span></div>
+    <div class="card" aria-hidden="true"><span class="sk" style="width:28%;height:20px"></span><span class="sk" style="width:92%;margin-top:16px"></span><span class="sk" style="width:84%;margin-top:8px"></span><span class="sk" style="width:90%;margin-top:8px"></span><span class="sk" style="width:60%;margin-top:8px"></span></div>`;
+  const prog = $('#s-prog'); prog.hidden = false; prog.classList.add('ind');
   const say = t => { st.textContent = t; };
   const run = async opts => {
     const jobs = [];
@@ -1745,7 +1929,7 @@ $('#scout-form').onsubmit = async e => {
     ({ games, errs } = await run({ ...o, months: 0 }));
     widened = games.length > 0;
   }
-  btn.disabled = false;
+  btn.disabled = false; prog.hidden = true; prog.classList.remove('ind');
   if (!games.length) {
     st.textContent = '';
     $('#report').innerHTML = `<div class="notice bad">${errs.length ? errs.map(esc).join('<br>') : 'These accounts exist but have no standard games for the time controls you ticked, even looking back across all time. Try ticking more time controls, or check the usernames.'}</div>`;
@@ -1757,7 +1941,7 @@ $('#scout-form').onsubmit = async e => {
     ? `Their most recent game in this data was ${ago(newest)} (${new Date(newest).toISOString().slice(0, 10)}).${widened ? ' Nothing was found in your chosen period, so this shows their latest games of any age.' : ''} Habits and openings may have changed since. Check whether they have another account.`
     : '';
   posCache.clear(); evalToken++;
-  S = { games, A: analyse(games), T: tendencies(games), color: 'white', path: { white: [], black: [] }, flip: null, staleNote, label: [cc, li].filter(Boolean).join(' / ') };
+  S = { games, A: analyse(games), T: tendencies(games), color: 'white', path: { white: [], black: [] }, flip: null, staleNote, cc, li, label: [cc, li].filter(Boolean).join(' / ') };
   st.textContent = errs.length ? errs.join(' ') : `Done: ${games.length} games.`;
   const meCc = cleanUser($('#m-cc').value), meLi = cleanUser($('#m-li').value);
   store.set('me', { cc: meCc, li: meLi });
@@ -1825,7 +2009,13 @@ let ROSTER = store.get('roster', []), FINDFOR = null;
 const saveRoster = () => store.set('roster', ROSTER);
 function renderRoster() {
   const el = $('#t-list');
-  if (!ROSTER.length) { el.innerHTML = ''; return; }
+  if (!ROSTER.length) {
+    el.innerHTML = `<div class="empty narrow"><h3>No players yet</h3>
+      <ol class="steps"><li>On chess-results.com, open your tournament and choose the starting rank list or a round's pairings.</li>
+      <li>Select the table, copy it, and paste it above.</li>
+      <li>For each opponent, Find accounts fills in the name, country and a rating range, and remembers the accounts you pick.</li></ol></div>`;
+    return;
+  }
   el.innerHTML = `<div class="card"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <h3 style="margin:0;margin-right:auto">${ROSTER.length} players · ${ROSTER.filter(p => p.cc || p.li).length} linked to accounts</h3>
       <input id="t-filter" type="text" placeholder="Filter by name or club" aria-label="Filter players" style="width:14rem;max-width:100%"></div>
@@ -1834,8 +2024,8 @@ function renderRoster() {
       <div><div class="nm">${esc(p.name)}</div>
         <div class="sub">${[p.rating ? 'Rating ' + p.rating : 'Unrated', p.fed, p.club].filter(Boolean).map(esc).join(' · ')}</div>
         ${(p.cc || p.li) ? `<div class="chips">${p.cc ? `<span class="chip good">Chess.com: ${esc(p.cc)}</span>` : ''}${p.li ? `<span class="chip good">Lichess: ${esc(p.li)}</span>` : ''}</div>` : ''}</div>
-      <div class="btns">${(p.cc || p.li) ? `<button type="button" class="primary" data-scout="${i}">Scout</button>` : ''}
-        <button type="button" class="ghost" data-find="${i}">${(p.cc || p.li) ? 'Find again' : 'Find accounts'}</button></div></div>`).join('')}</div></div>`;
+      <div class="btns">${(p.cc || p.li) ? `<button type="button" class="primary" data-scout="${i}">${ic('target')}Scout</button>` : ''}
+        <button type="button" class="ghost" data-find="${i}">${ic('search')}${(p.cc || p.li) ? 'Find again' : 'Find accounts'}</button></div></div>`).join('')}</div></div>`;
   $$('#t-rows [data-find]').forEach(b => b.onclick = () => startFind(+b.dataset.find));
   $$('#t-rows [data-scout]').forEach(b => b.onclick = () => {
     const p = ROSTER[+b.dataset.scout]; $('#s-cc').value = p.cc || ''; $('#s-li').value = p.li || '';
@@ -1872,6 +2062,34 @@ $('#t-clear').onclick = () => { ROSTER = []; saveRoster(); $('#t-paste').value =
   const me = store.get('me', null);
   if (me) { $('#m-cc').value = me.cc || ''; $('#m-li').value = me.li || ''; }
   loadSaved(); renderRoster();
+
+  // live summaries on the collapsed option groups
+  const findSum = () => {
+    const lo = $('#f-rmin').value, hi = $('#f-rmax').value, hint = $('#f-hint').value.trim();
+    const bits = [$('#f-cc').value.trim().toUpperCase(), (lo || hi) ? `${lo || '…'}–${hi || '…'}` : '', $('#f-place').value.trim(), hint ? `hint ${hint}` : ''].filter(Boolean);
+    $('#f-sum').textContent = bits.length ? bits.join(' · ') : 'optional';
+    return bits.length;
+  };
+  const scoutSum = () => {
+    const tcs = $$('input[name=tc]:checked').map(x => x.parentElement.textContent.trim().replace(' / Daily', ''));
+    const mine = [$('#m-cc').value, $('#m-li').value].map(cleanUser).filter(Boolean)[0];
+    $('#s-sum').textContent = [$('#s-months').selectedOptions[0].textContent, tcs.join(', '), mine ? `you: ${mine}` : ''].filter(Boolean).join(' · ');
+  };
+  $('#find-form').addEventListener('input', findSum);
+  $('#scout-form').addEventListener('input', scoutSum); $('#scout-form').addEventListener('change', scoutSum);
+  if (findSum()) $('#f-more').open = true;
+  scoutSum();
+
+  // a shared link (#cc=...&li=...) opens straight into that opponent's report
+  const openFromHash = () => {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get('cc') || h.get('li')) {
+      $('#s-cc').value = h.get('cc') || ''; $('#s-li').value = h.get('li') || '';
+      showTab('scout'); $('#scout-form').requestSubmit();
+    }
+  };
+  openFromHash();
+  window.addEventListener('hashchange', openFromHash);
 })();
 </script>
 </body>
